@@ -34,9 +34,12 @@
 
 ## 4. 真实模型补充验证（2026-08-09）
 
-用 `ChatOpenAI(gpt-4o-mini)` + `create_react_agent` 实测（此轮因 API key 401 未跑通成功路径，但错误路径已验证）：
+用 `ChatOpenAI` + `create_react_agent` 实测：
 
 - prebuilt agent 的 span 结构：`agent_run -> agent -> call_model / RunnableSequence -> Prompt -> llm_call(ChatOpenAI)`，Prompt 等内部 Runnable 会以 `node` span 出现。
 - LLM 调用失败时触发 `on_llm_error`，llm_call span 的 error 被正确记录；错误沿 `RunnableSequence -> call_model -> agent -> 根` 逐级上抛。
 - `create_react_agent` 在 LangGraph 1.0 已弃用（提示迁移到 `langchain.agents`），MVP 继续用 `langgraph.prebuilt` 并记录此限制。
-- 成功路径（invocation_params 完整结构、token_usage、tool calling 事件）待有效 key 环境补充验证。
+- 初次验证的 401 根因是端点错误：key 来自 DeepSeek 却打到了 OpenAI 默认端点。DeepSeek 为 OpenAI 兼容接口，`base_url="https://api.deepseek.com"` 即可。
+- 实测可用模型：`deepseek-v4-flash`、`deepseek-v4-pro`（GET /models 返回）。
+- 成功路径实测（deepseek-v4-flash）：`on_chat_model_start` 的 `kwargs["invocation_params"]` 含 model/model_name/stream/temperature；token_usage 位于 `response.llm_output["token_usage"]`（含 prompt/completion 明细），`gen.message.response_metadata` 与 `usage_metadata` 也有同源数据。
+- 曾发现并修复：serializer 输出 Span 时遗漏 `metadata` 字段，导致 replay 数据（invocation_params/token_usage/tool_call_id）在最终 trace 中丢失。现 Span 模型已含 `metadata` 并透出。

@@ -3,8 +3,19 @@
 import json
 from uuid import uuid4
 
+from langchain_core.messages import HumanMessage
+
 from agenteval.collector.callback import AgentEvalCallbackHandler
 from agenteval.collector.serializer import build_trace, serialize_to_json
+
+
+class _FakeResponse:
+    """模拟 on_llm_end 的 response（含 generations 与 llm_output）。"""
+
+    def __init__(self) -> None:
+        generation = type("Generation", (), {"text": "hello"})()
+        self.generations = [[generation]]
+        self.llm_output = {"token_usage": {"total_tokens": 5}}
 
 
 def _feed_agent_run(h, query="q"):
@@ -125,3 +136,48 @@ def test_children_ordered_by_started_at():
     h.on_chain_end({}, run_id=root, parent_run_id=None)
     names = [s["name"] for s in build_trace(h)["root_span"]["children"]]
     assert names == ["second", "first"]
+
+
+def test_llm_span_metadata_preserved_in_trace():
+    h = AgentEvalCallbackHandler()
+    root, node, llm = uuid4(), uuid4(), uuid4()
+    h.on_chain_start(None, {}, run_id=root, parent_run_id=None, name="LangGraph")
+    h.on_chain_start(None, {}, run_id=node, parent_run_id=root, name="reason")
+    h.on_chat_model_start(
+        {"name": "ChatOpenAI"},
+        [[HumanMessage(content="hi")]],
+        run_id=llm,
+        parent_run_id=node,
+        invocation_params={"model": "gpt-4o"},
+        options={},
+    )
+    h.on_llm_end(_FakeResponse(), run_id=llm, parent_run_id=node)
+    h.on_chain_end({}, run_id=node, parent_run_id=root)
+    h.on_chain_end({}, run_id=root, parent_run_id=None)
+
+    trace = build_trace(h)
+    llm_span = trace["root_span"]["children"][0]["children"][0]
+    assert llm_span["metadata"]["model_name"] == "ChatOpenAI"
+    assert llm_span["metadata"]["invocation_params"] == {"model": "gpt-4o"}
+    assert llm_span["metadata"]["token_usage"] == {"total_tokens": 5}
+
+
+def test_tool_span_metadata_preserved_in_trace():
+    h = AgentEvalCallbackHandler()
+    root, node, tool = uuid4(), uuid4(), uuid4()
+    h.on_chain_start(None, {}, run_id=root, parent_run_id=None, name="LangGraph")
+    h.on_chain_start(None, {}, run_id=node, parent_run_id=root, name="tools")
+    h.on_tool_start(
+        {"name": "search"},
+        "q",
+        run_id=tool,
+        parent_run_id=node,
+        tool_call_id="t1",
+    )
+    h.on_tool_end("result", run_id=tool, parent_run_id=node)
+    h.on_chain_end({}, run_id=node, parent_run_id=root)
+    h.on_chain_end({}, run_id=root, parent_run_id=None)
+
+    trace = build_trace(h)
+    tool_span = trace["root_span"]["children"][0]["children"][0]
+    assert tool_span["metadata"]["tool_call_id"] == "t1"

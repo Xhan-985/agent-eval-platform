@@ -321,6 +321,7 @@ Span = {
     annotation: str       # 教学注释（annotator 生成）
     started_at: str
     ended_at: str
+    metadata: dict        # token_usage / invocation_params / tool_call_id / langgraph_node（replay 数据）
     children: [Span]      # 子 span 列表（递归）
 }
 ```

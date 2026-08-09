@@ -50,6 +50,7 @@ class Span(TypedDict):
     annotation: str
     started_at: str
     ended_at: str | None
+    metadata: dict[str, Any]
     children: list[Span]
 
 

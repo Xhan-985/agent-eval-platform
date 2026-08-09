@@ -2,12 +2,16 @@
 
 用法：
     python examples/react_agent_trace.py            # fake 模式，无需 API key
-    python examples/react_agent_trace.py --real     # 真实 OpenAI 模型（需要 OPENAI_API_KEY）
+    python examples/react_agent_trace.py --real     # 真实模型（默认 DeepSeek，OpenAI 兼容）
 
 演示 3 个场景：
 1. 正常调用（LLM → tool → LLM）
 2. tool 抛异常（error span 验证，trace 仍被完整记录）
 3. 多轮调用（复用同一包装对象，每次执行生成独立 trace）
+
+真实模型配置（环境变量，.env 文件同样生效）：
+    OPENAI_API_KEY  = DeepSeek / OpenAI 的 API key
+    AGENTEVAL_MODEL = 模型名，默认 deepseek-v4-flash（可切换 deepseek-v4-pro）
 """
 
 from __future__ import annotations
@@ -19,6 +23,9 @@ from pathlib import Path
 from typing import TypedDict
 
 import agenteval
+
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEFAULT_MODEL = "deepseek-v4-flash"
 
 
 def _ensure_utf8_stdout() -> None:
@@ -109,12 +116,17 @@ def build_fake_graph():
 
 
 def build_real_graph():
-    """real 模式：ChatOpenAI + langgraph.prebuilt.create_react_agent。"""
+    """real 模式：OpenAI 兼容模型（默认 DeepSeek）+ create_react_agent。"""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
 
     search, calculator = _make_tools()
-    model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    model = ChatOpenAI(
+        model=os.environ.get("AGENTEVAL_MODEL", DEFAULT_MODEL),
+        base_url=DEEPSEEK_BASE_URL,
+        temperature=0,
+        api_key=os.environ.get("OPENAI_API_KEY"),
+    )
     # LangGraph 1.0 起 create_react_agent 标记弃用（建议迁移到 langchain.agents），
     # 为避免示例引入完整的 langchain 依赖，MVP 阶段继续使用 langgraph.prebuilt。
     return create_react_agent(model, tools=[search, calculator])
@@ -128,14 +140,17 @@ def _print_spans(span, indent: int = 0) -> None:
         _print_spans(child, indent + 1)
 
 
-def run_case(label: str, wrapped, query: str) -> None:
+def run_case(label: str, wrapped, mode: str, query: str) -> None:
     """执行一个场景并打印 trace 摘要。"""
     print(f"\n=== {label} ===")
+    input_data = (
+        {"messages": [("user", query)]}
+        if mode == "real"
+        else {"query": query, "messages": []}
+    )
     try:
-        result = wrapped.invoke(
-            {"query": query, "messages": []}, config={"thread_id": label}
-        )
-        print("结果:", json.dumps(result, ensure_ascii=False)[:160])
+        result = wrapped.invoke(input_data, config={"thread_id": label})
+        print("结果:", json.dumps(result, ensure_ascii=False, default=str)[:160])
     except Exception as exc:  # noqa: BLE001 —— 示例中需要演示异常场景
         print(f"执行失败（trace 仍被记录）：{type(exc).__name__}: {exc}")
     trace = agenteval.last_trace()
@@ -153,9 +168,9 @@ def main() -> None:
 
     # 复用同一个包装对象：验证每次 invoke 生成独立 trace
     wrapped = agenteval.wrap(graph)
-    run_case("场景 1：正常调用", wrapped, "LangGraph 是什么？")
-    run_case("场景 2：tool 抛异常", wrapped, "boom 测试")
-    run_case("场景 3：多轮调用（第二次）", wrapped, "给我讲个笑话")
+    run_case("场景 1：正常调用", wrapped, mode, "LangGraph 是什么？")
+    run_case("场景 2：tool 抛异常", wrapped, mode, "boom 测试")
+    run_case("场景 3：多轮调用（第二次）", wrapped, mode, "给我讲个笑话")
 
 
 if __name__ == "__main__":

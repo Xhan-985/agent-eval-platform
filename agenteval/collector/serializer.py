@@ -52,6 +52,7 @@ def _build_span(handler: AgentEvalCallbackHandler, span_id: str) -> Span:
         annotation=annotate(dict(state)),
         started_at=state["started_at"],
         ended_at=state["ended_at"],
+        metadata=state["metadata"],
         children=[_build_span(handler, cid) for cid in children_ids],
     )
     return span
