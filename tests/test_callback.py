@@ -7,6 +7,15 @@ from langchain_core.messages import HumanMessage
 from agenteval.collector.callback import AgentEvalCallbackHandler
 
 
+class _FakeLLMResponse:
+    """模拟 on_llm_end 的 response（含 generations 与 token_usage）。"""
+
+    def __init__(self, text: str = "hello") -> None:
+        generation = type("Generation", (), {"text": text})()
+        self.generations = [[generation]]
+        self.llm_output = {"token_usage": {"total_tokens": 5}}
+
+
 def test_chain_start_creates_root_span():
     h = AgentEvalCallbackHandler()
     rid = uuid4()
@@ -86,6 +95,17 @@ def test_tool_events_capture_input_output_and_tool_call_id():
     assert state["input"] == "query"
     assert state["output"] == "results"
     assert state["metadata"]["tool_call_id"] == "t1"
+
+
+def test_llm_end_captures_text_and_token_usage():
+    h = AgentEvalCallbackHandler()
+    rid = uuid4()
+    h.on_llm_start({"name": "gpt-4o"}, ["prompt"], run_id=rid, parent_run_id=None)
+    h.on_llm_end(_FakeLLMResponse(), run_id=rid, parent_run_id=None)
+    state = h._states[str(rid)]
+    assert state["output"] == {"text": "hello"}
+    assert state["metadata"]["token_usage"] == {"total_tokens": 5}
+    assert state["ended_at"] is not None
 
 
 def test_chain_error_records_error_and_ends_span():
