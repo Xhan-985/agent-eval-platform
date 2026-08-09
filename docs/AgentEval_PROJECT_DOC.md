@@ -450,11 +450,11 @@ web.replay_view 展示对比（原 output vs 新 output）
 
 | 层 | 技术 | 版本 | 为什么选它 |
 |----|------|------|-----------|
-| 语言 | Python | 3.10+ | LangGraph 生态主流，大学生有基础 |
-| Agent 框架 | LangGraph | 0.2+ | MVP 只支持它，用户基数大 |
+| 语言 | Python | 3.11+ | LangGraph 生态主流，大学生有基础 |
+| Agent 框架 | LangGraph | 0.4+ | MVP 只支持它，用户基数大 |
 | 存储 | SQLite | 内置 | 零配置，单机够用 |
 | Web 框架 | Streamlit | 1.30+ | 一周出原型，Python 一套打通 |
-| 可视化 | streamlit-mermaid / plotly | 最新 | 树状图现成组件 |
+| 可视化 | st.graphviz_chart（内置）/ plotly | 最新 | 树状图现成组件，零额外依赖 |
 | 打包 | pip + PyPI | - | Python 标准方式 |
 
 ### 9.2 为什么不选其他技术
@@ -529,7 +529,7 @@ MVP 阶段 `setup.py` 的核心依赖：
 **目标**：点开 trace 看到树状图 + 教学注释。
 
 **任务**：
-1. 选型树状图组件（streamlit-mermaid 或 plotly）
+1. 选型树状图组件（优先内置 `st.graphviz_chart`，备选 plotly）
 2. 实现 trace_view.py，渲染树状图
 3. 每个节点展示 span 类型、名称、注释
 4. 点击节点展开 input/output 详情

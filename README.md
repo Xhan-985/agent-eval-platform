@@ -2,7 +2,7 @@
 
 > 面向学习者的 AI Agent 执行调试器。3 行代码接入 LangGraph，自动生成教学注释，支持 LLM 节点安全回放。
 
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/status-WIP-orange.svg)](https://github.com/your-username/agenteval)
 
@@ -35,15 +35,14 @@ pip install agenteval
 import agenteval
 agenteval.init()
 
-@agenteval.trace
-def run_agent(question):
-    return graph.invoke({"messages": [("user", question)]})
+graph = build_my_langgraph()          # 你的 LangGraph
+traced_graph = agenteval.wrap(graph)  # 一行包装，自动注入采集
 
-run_agent("LangGraph 是什么？")
+result = traced_graph.invoke({"messages": [("user", "LangGraph 是什么？")]})
 # 自动输出带教学注释的 trace
 ```
 
-就这么简单，3 行代码接入。
+就这么简单，3 行代码接入。如果你的调用函数签名包含 `**kwargs`，也可以用 `@agenteval.trace` 装饰器（详见 [开发交接文档](./docs/HANDOVER.md)）。
 
 ## 示例
 

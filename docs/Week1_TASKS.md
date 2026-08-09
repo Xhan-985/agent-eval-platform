@@ -48,7 +48,7 @@ LangGraph 的 tracing 基于 LangChain 的 callback 系统：
 本地能跑通一个 LangGraph ReAct Agent，为后续 callback 接入做准备。
 
 ### 具体步骤
-1. 创建 Python 虚拟环境（Python 3.10+）
+1. 创建 Python 虚拟环境（Python 3.11+，仓库 `.python-version` 为 3.12）
 2. 安装依赖：`langgraph`、`langchain-openai`
 3. 配置 OpenAI API key（或用其他支持的模型）
 4. 复制 LangGraph 官方 ReAct Agent 示例
@@ -296,12 +296,13 @@ error span:
 
 ### 具体步骤
 1. 创建 `agenteval/__init__.py`
-2. 暴露两个 API：
-   - `agenteval.init(db_path="agenteval.db")`：初始化（创建 SQLite、注册 callback）
-   - `@agenteval.trace`：装饰器，包裹 Agent 的 invoke 方法
+2. 暴露三个 API：
+   - `agenteval.init(db_path="agenteval.db")`：初始化（Week 1 只记录 db_path，不建库）
+   - `agenteval.wrap(graph)`：**推荐 API**，包装 graph 并注入 callback
+   - `@agenteval.trace`：可选装饰器，仅适用于签名包含 `**kwargs` 的函数
 3. 内部机制：
    - `init()` 创建 callback handler 实例
-   - `@trace` 装饰器自动把 handler 加到 `config={"callbacks": [handler]}`
+   - `wrap()` 自动把 handler 加到 `config={"callbacks": [handler]}`，并与用户 config 合并
 4. 暂时只打印 trace JSON，不存数据库（数据库是 Week 2）
 
 ### 输入
@@ -314,31 +315,33 @@ error span:
 ### 验收标准
 - [ ] `import agenteval` 能导入
 - [ ] `agenteval.init()` 不报错
-- [ ] `@agenteval.trace` 装饰器能用在 Agent 的 invoke 上
+- [ ] `agenteval.wrap(graph)` 能包装 graph，invoke 后自动采集
+- [ ] 用户自带 config（如 thread_id）与注入的 callbacks 正确合并
+- [ ] `@agenteval.trace` 装饰器能用于接受 `**kwargs` 的函数
 - [ ] 运行 Agent 后自动采集 trace 并打印
-- [ ] 接入代码不超过 3 行（import + init + 装饰器）
+- [ ] 接入代码不超过 3 行（import + init + wrap）
 
 ### 期望的使用方式
 ```python
 import agenteval
 agenteval.init()
 
-@agenteval.trace
-def run_agent(question):
-    return graph.invoke({"messages": [("user", question)]})
+graph = build_my_langgraph()          # 用户的 LangGraph
+traced_graph = agenteval.wrap(graph)  # 1 行包装
 
-run_agent("LangGraph 是什么？")
+result = traced_graph.invoke({"messages": [("user", "LangGraph 是什么？")]})
 # 自动打印带注释的 trace JSON
 ```
 
 ### 难点
-- **装饰器设计**：要兼容 Agent 的不同调用方式（invoke / stream / ainvoke）
+- **wrap 设计**：用户 config 与注入 callbacks 的合并；`ainvoke`/`stream` 明确抛 `NotImplementedError`
 - **callback 注入**：如何把 handler 自动加到 config 里，而不让用户手动写
 
 ### 设计要点
 - MVP 只支持 `invoke`，不支持 async（简化）
 - `init()` 可以接受参数（如 `db_path`、`verbose`），但都有默认值
-- 装饰器内部捕获异常，不让采集失败影响 Agent 执行
+- `init()` 必须先于 `wrap()` 调用，wrap 时绑定当前 handler
+- wrap/装饰器内部捕获异常，不让采集失败影响 Agent 执行
 
 ---
 

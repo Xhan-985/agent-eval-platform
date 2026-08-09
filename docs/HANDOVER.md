@@ -39,7 +39,7 @@ agenteval/
 │   └── test_annotator.py
 ├── README.md
 ├── pyproject.toml                # 包配置
-└── .python-version               # 3.10+
+└── .python-version               # 3.12
 ```
 
 ### 当前阶段需创建的文件
@@ -94,6 +94,12 @@ trace(func: Callable) -> Callable
 - 被包装的 graph/函数若抛异常，trace 仍需记录 error span，异常向上抛
 - callback handler 采集失败不能影响 Agent 执行（try-except 兜底）
 
+**`wrap()` 契约细节**：
+- 用户调用包装对象时若同时传 `config`，必须与注入的 `{"callbacks": [...]}` **合并**（保留 `thread_id` 等用户配置），不能覆盖
+- Week 1 只实现同步 `invoke`；调用 `ainvoke` / `stream` / `astream` 时抛 `NotImplementedError` 并提示限制
+- `init()` 必须先于 `wrap()` 调用；wrap 时绑定当前 handler 实例
+- 必须调用返回的包装对象；直接调用原 graph 不会采集 trace
+
 ### 2.2 `agenteval/collector/callback.py` — 采集器
 
 **职责**：实现 LangChain `BaseCallbackHandler`，接收 LangGraph 执行事件。
@@ -116,7 +122,7 @@ class AgentEvalCallbackHandler(BaseCallbackHandler):
 | `on_chain_start(serialized, inputs, *, run_id, parent_run_id, **kwargs)` | graph node 开始 | span_id, parent_id, name, input, started_at |
 | `on_chain_end(outputs, *, run_id, parent_run_id, **kwargs)` | graph node 结束 | output, ended_at |
 | `on_chain_error(error, *, run_id, parent_run_id, **kwargs)` | node 出错 | error 信息, ended_at |
-| `on_llm_start(serialized, prompts, *, run_id, parent_run_id, **kwargs)` | LLM 调用开始 | model name, messages |
+| `on_llm_start(serialized, prompts, *, run_id, parent_run_id, **kwargs)` | LLM 调用开始 | model name, messages, invocation params |
 | `on_llm_end(response, *, run_id, parent_run_id, **kwargs)` | LLM 调用结束 | output text, token_usage |
 | `on_tool_start(serialized, input_str, *, run_id, parent_run_id, **kwargs)` | tool 调用开始 | tool name, input |
 | `on_tool_end(output, *, run_id, parent_run_id, **kwargs)` | tool 调用结束 | output |
@@ -288,7 +294,8 @@ SpanState = {
     error: str | None     # 错误信息（error 时填充）
     started_at: str       # ISO 8601 时间戳
     ended_at: str | None  # ISO 8601 时间戳
-    metadata: dict        # 额外信息（token_usage, model_name 等）
+    metadata: dict        # 额外信息：token_usage、model_name、完整 messages、
+                          # invocation params（replay 必需）、tool name/args
 }
 ```
 
@@ -332,6 +339,11 @@ on_chain_start(serialized: dict, inputs: dict, *, run_id: UUID, parent_run_id: U
 - `on_chain_start` + `parent_run_id is not None` → `type = "node"`
 - `on_llm_start` → `type = "llm_call"`
 - `on_tool_start` → `type = "tool_call"`
+
+**replay 数据采集（Week 4 前置，必须现在做）**：
+- LLM span：metadata 必须包含 `model_name`、完整 `messages`、`invocation_params`（temperature / max_tokens / 工具定义）
+- tool span：metadata 包含 tool name、参数，output 字段保存返回结果
+- 缺少上述字段，Week 4 replay 无法对历史 trace 重跑，只能改采集契约或放弃 replay
 
 **name 提取规则**：
 - 从 `serialized["name"]` 提取
@@ -412,10 +424,12 @@ run_agent("LangGraph 是什么？")
 
 **`wrap(graph)` 行为**：
 - 返回一个新的 Runnable，内部对 `graph.invoke()` 自动传入 `config={"callbacks": [_handler]}`
+- 用户传入的 `config` 与注入的 callbacks **合并**，不覆盖（保留 `thread_id` 等）
 - 调用前 `handler.reset()`
 - 执行结束后，调用 `serializer.build_trace(_handler)` 获取 trace
 - 打印 trace JSON 到控制台（Week 1 行为）
 - 若 invoke 抛异常，仍调用 `build_trace` 记录 error span，然后向上抛异常
+- `ainvoke` / `stream` / `astream` 抛 `NotImplementedError`（Week 1 只支持同步 invoke）
 
 **`@trace` 装饰器行为**：
 - 仅用于函数签名包含 `**kwargs` 的函数
@@ -430,7 +444,7 @@ run_agent("LangGraph 是什么？")
 **内容要求**：
 - 用 LangGraph 构建 ReAct Agent
 - 至少 2 个 tool（如 search + calculator，可用 mock）
-- 用 `agenteval.init()` + `@agenteval.trace` 接入
+- 用 `agenteval.init()` + `agenteval.wrap()` 接入
 - 运行 3 个测试用例：
   1. 正常调用（LLM → tool → LLM → 输出）
   2. tool 抛异常（error span 验证）
@@ -511,8 +525,8 @@ run_agent("LangGraph 是什么？")
 
 | 依赖 | 版本 | 原因 |
 |------|------|------|
-| Python | >=3.10 | LangGraph 要求 |
-| langgraph | >=0.2 | 最新稳定版 |
+| Python | >=3.11 | 与 pyproject 一致；3.10 于 2026-10 停止维护 |
+| langgraph | >=0.4 | 与 pyproject examples extra 一致 |
 | langchain-core | >=0.3 | BaseCallbackHandler 所在 |
 | langchain-openai | >=0.2 | 示例用 |
 
@@ -536,7 +550,7 @@ Week 1 的 `pyproject.toml` 只声明以下运行时依赖：
 
 ### 7.4 代码风格
 
-- 用 `type hints`（Python 3.10+ 语法，如 `str | None`）
+- 用 `type hints`（Python 3.11+ 语法，如 `str | None`）
 - 用 `dataclass` 或 `TypedDict` 定义数据结构
 - 函数文档用 docstring（Google 风格）
 - 文件编码 UTF-8
@@ -561,7 +575,7 @@ Week 1 的 `pyproject.toml` 只声明以下运行时依赖：
 
 **接口变化**：
 - `__init__.py` 的 `init()` 真正创建数据库
-- `@trace` 装饰器把 trace 写入 SQLite，而非仅打印
+- `wrap()` 包装对象把 trace 写入 SQLite，而非仅打印
 
 **数据表结构**：
 ```
@@ -580,7 +594,7 @@ traces表：
 - `web/trace_view.py`：树状图渲染
 
 **技术选型**：
-- 用 `streamlit-mermaid` 或 `plotly` 渲染树
+- 用内置 `st.graphviz_chart`（零依赖）或 `plotly` 渲染树（不用维护差的 `streamlit-mermaid`）
 - 展示 span 节点 + annotation + input/output 折叠
 
 ### 8.3 Week 4：安全 replay
@@ -633,6 +647,7 @@ replay(trace_id, span_id, new_input):
 ### 功能验收
 - [ ] `import agenteval` 不报错
 - [ ] `agenteval.init()` 可重复调用
+- [ ] `agenteval.wrap(graph)` 可用，且用户自带 config 不被丢弃
 - [ ] `@agenteval.trace` 装饰器可用
 - [ ] ReAct Agent 运行后输出 trace JSON
 - [ ] trace JSON 是正确嵌套树形结构
