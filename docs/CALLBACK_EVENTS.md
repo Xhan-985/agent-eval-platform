@@ -31,3 +31,12 @@
 ## 3. 探针验证方法
 
 用一个 `StateGraph`（reason -> search_node）+ `FakeListChatModel` + `@tool` 打印全部事件即可复现。真实模型（ChatOpenAI）除 invocation_params 内容不同外，事件结构与 fake 一致。
+
+## 4. 真实模型补充验证（2026-08-09）
+
+用 `ChatOpenAI(gpt-4o-mini)` + `create_react_agent` 实测（此轮因 API key 401 未跑通成功路径，但错误路径已验证）：
+
+- prebuilt agent 的 span 结构：`agent_run -> agent -> call_model / RunnableSequence -> Prompt -> llm_call(ChatOpenAI)`，Prompt 等内部 Runnable 会以 `node` span 出现。
+- LLM 调用失败时触发 `on_llm_error`，llm_call span 的 error 被正确记录；错误沿 `RunnableSequence -> call_model -> agent -> 根` 逐级上抛。
+- `create_react_agent` 在 LangGraph 1.0 已弃用（提示迁移到 `langchain.agents`），MVP 继续用 `langgraph.prebuilt` 并记录此限制。
+- 成功路径（invocation_params 完整结构、token_usage、tool calling 事件）待有效 key 环境补充验证。

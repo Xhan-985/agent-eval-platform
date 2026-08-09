@@ -13,7 +13,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+from pathlib import Path
 from typing import TypedDict
 
 import agenteval
@@ -25,6 +27,25 @@ def _ensure_utf8_stdout() -> None:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
         pass
+
+
+def _load_dotenv_if_present() -> None:
+    """仓库根目录存在 .env 且环境变量未设置时读取 OPENAI_API_KEY。
+
+    .env 已被 .gitignore 忽略，不会提交。不引入第三方依赖。
+    """
+    if os.environ.get("OPENAI_API_KEY"):
+        return
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        if key.strip() == "OPENAI_API_KEY":
+            os.environ["OPENAI_API_KEY"] = value.strip().strip('"').strip("'")
 
 
 class State(TypedDict):
@@ -94,6 +115,8 @@ def build_real_graph():
 
     search, calculator = _make_tools()
     model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    # LangGraph 1.0 起 create_react_agent 标记弃用（建议迁移到 langchain.agents），
+    # 为避免示例引入完整的 langchain 依赖，MVP 阶段继续使用 langgraph.prebuilt。
     return create_react_agent(model, tools=[search, calculator])
 
 
@@ -122,6 +145,7 @@ def run_case(label: str, wrapped, query: str) -> None:
 
 def main() -> None:
     _ensure_utf8_stdout()
+    _load_dotenv_if_present()
     mode = "real" if "--real" in sys.argv else "fake"
     agenteval.init(verbose=False)
     print(f"AgentEval 示例（{mode} 模式）")
