@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agenteval"
+version = "0.1.0"
+description = "面向学习者的 AI Agent 执行调试器"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Xhan-985" },
+]
+keywords = ["ai-agent", "debugger", "langgraph", "tracing", "observability"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Debuggers",
+]
+dependencies = [
+    "langchain-core>=0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+]
+examples = [
+    "langgraph>=0.4",
+    "langchain-openai>=0.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/Xhan-985/agent-eval-platform"
+Repository = "https://github.com/Xhan-985/agent-eval-platform"
+Issues = "https://github.com/Xhan-985/agent-eval-platform/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agenteval"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.coverage.run]
+source = ["agenteval"]
+omit = ["tests/*"]

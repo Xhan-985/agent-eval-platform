@@ -77,14 +77,21 @@ init(db_path: str = "agenteval.db", verbose: bool = False) -> None
     初始化 AgentEval。创建 callback handler 实例，存到模块级变量。
     Week 1 不实际写数据库，db_path 仅记录。
 
+wrap(graph: Runnable) -> Runnable
+    包装 LangGraph graph，返回注入了 callback 的新 graph。
+    用户直接对返回值调用 .invoke() 即可，无需手动传 config。
+    推荐 API，3 行代码接入。
+
 trace(func: Callable) -> Callable
-    装饰器。包裹 Agent 的 invoke 方法，自动注入 callback handler 到 config。
-    内部调用 func 时传入 config={"callbacks": [handler]}。
+    装饰器。仅适用于签名包含 **kwargs 的函数（会向其传入 callbacks）。
+    若函数签名不接受额外参数，请改用 wrap()。
 ```
 
 **设计约束**：
 - `init()` 必须可重复调用（幂等），不报错
-- `@trace` 装饰的函数若抛异常，trace 仍需记录 error span，异常向上抛
+- `wrap()` 返回的 graph 调用 `.invoke()` 时自动注入 callback，用户无需关心 config
+- `@trace` 仅用于函数签名已包含 `**kwargs` 的场景；优先推荐 `wrap()`
+- 被包装的 graph/函数若抛异常，trace 仍需记录 error span，异常向上抛
 - callback handler 采集失败不能影响 Agent 执行（try-except 兜底）
 
 ### 2.2 `agenteval/collector/callback.py` — 采集器
@@ -375,14 +382,27 @@ on_chain_start(serialized: dict, inputs: dict, *, run_id: UUID, parent_run_id: U
 
 ### 5.5 功能 F4：3 行代码接入 API
 
-**用户使用方式**：
+**用户使用方式（推荐：wrap）**：
+```python
+import agenteval
+agenteval.init()
+
+graph = build_my_langgraph()  # 用户的 LangGraph
+traced_graph = agenteval.wrap(graph)  # 1 行包装
+result = traced_graph.invoke({"messages": [("user", "LangGraph 是什么？")]})
+# 自动采集并打印 trace
+```
+
+**可选方式（装饰器，要求函数接受 **kwargs）**：
 ```python
 import agenteval
 agenteval.init()
 
 @agenteval.trace
-def run_agent(question):
-    return graph.invoke({"messages": [("user", question)]})
+def run_agent(question, **kwargs):
+    return graph.invoke({"messages": [("user", question)]}, config=kwargs)
+
+run_agent("LangGraph 是什么？")
 ```
 
 **`init()` 行为**：
@@ -390,12 +410,18 @@ def run_agent(question):
 - 记录 `db_path`（Week 1 不使用）
 - 幂等：重复调用不报错，覆盖旧 handler
 
-**`@trace` 装饰器行为**：
-- 包裹函数，调用前 `handler.reset()`
-- 调用原函数，传入 `config={"callbacks": [_handler]}`
-- 函数执行结束后，调用 `serializer.build_trace(_handler)` 获取 trace
+**`wrap(graph)` 行为**：
+- 返回一个新的 Runnable，内部对 `graph.invoke()` 自动传入 `config={"callbacks": [_handler]}`
+- 调用前 `handler.reset()`
+- 执行结束后，调用 `serializer.build_trace(_handler)` 获取 trace
 - 打印 trace JSON 到控制台（Week 1 行为）
-- 若原函数抛异常，仍调用 `build_trace` 记录 error span，然后向上抛异常
+- 若 invoke 抛异常，仍调用 `build_trace` 记录 error span，然后向上抛异常
+
+**`@trace` 装饰器行为**：
+- 仅用于函数签名包含 `**kwargs` 的函数
+- 调用前 `handler.reset()`
+- 把 `callbacks=[_handler]` 通过 kwargs 传给原函数（原函数需自行传给 graph.invoke 的 config）
+- 其余行为与 `wrap()` 一致
 
 ### 5.6 功能 F5：端到端示例
 
