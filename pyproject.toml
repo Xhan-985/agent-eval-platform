@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Software Development :: Debuggers",
 ]
 dependencies = [
-    "langchain-core>=0.3",
+    "langchain-core>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -35,8 +35,8 @@ dev = [
     "ruff>=0.6",
 ]
 examples = [
-    "langgraph>=0.4",
-    "langchain-openai>=0.2",
+    "langgraph>=1.0",
+    "langchain-openai>=1.0",
 ]
 
 [project.urls]

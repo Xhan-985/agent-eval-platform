@@ -427,7 +427,7 @@ run_agent("LangGraph 是什么？")
 - 用户传入的 `config` 与注入的 callbacks **合并**，不覆盖（保留 `thread_id` 等）
 - 调用前 `handler.reset()`
 - 执行结束后，调用 `serializer.build_trace(_handler)` 获取 trace
-- 打印 trace JSON 到控制台（Week 1 行为）
+- `verbose=True` 时打印 trace JSON 到控制台；trace 始终可通过 `agenteval.last_trace()` 获取
 - 若 invoke 抛异常，仍调用 `build_trace` 记录 error span，然后向上抛异常
 - `ainvoke` / `stream` / `astream` 抛 `NotImplementedError`（Week 1 只支持同步 invoke）
 
@@ -526,9 +526,9 @@ run_agent("LangGraph 是什么？")
 | 依赖 | 版本 | 原因 |
 |------|------|------|
 | Python | >=3.11 | 与 pyproject 一致；3.10 于 2026-10 停止维护 |
-| langgraph | >=0.4 | 与 pyproject examples extra 一致 |
-| langchain-core | >=0.3 | BaseCallbackHandler 所在 |
-| langchain-openai | >=0.2 | 示例用 |
+| langgraph | >=1.0 | 实测 1.2.10；回调行为详见 docs/CALLBACK_EVENTS.md |
+| langchain-core | >=1.0 | 实测 1.5.3；BaseCallbackHandler 所在 |
+| langchain-openai | >=1.0 | 实测 1.4.2；示例用 |
 
 ### 7.2 依赖最小化
 

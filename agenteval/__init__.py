@@ -1,1 +1,137 @@
-"""AgentEval - 面向学习者的 AI Agent 执行调试器"""
+"""AgentEval — 面向学习者的 AI Agent 执行调试器。
+
+用法（推荐）：
+
+    import agenteval
+    agenteval.init()
+    traced = agenteval.wrap(graph)
+    result = traced.invoke({...})
+"""
+
+from __future__ import annotations
+
+import functools
+import logging
+from collections.abc import Callable
+from typing import Any
+
+from .collector.callback import AgentEvalCallbackHandler
+from .collector.serializer import build_trace, serialize_to_json
+
+__version__ = "0.1.0"
+__all__ = ["init", "wrap", "trace", "last_trace", "__version__"]
+
+logger = logging.getLogger("agenteval")
+
+_handler: AgentEvalCallbackHandler | None = None
+_db_path: str = "agenteval.db"
+_verbose: bool = False
+_last_trace: dict[str, Any] | None = None
+
+
+def init(db_path: str = "agenteval.db", verbose: bool = False) -> None:
+    """初始化 AgentEval，创建采集 handler（幂等，可重复调用）。
+
+    Week 1 只记录 db_path，不创建数据库（Week 2 起用于存储 trace）。
+    verbose=True 时，每次采集完成后会把 trace JSON 打印到控制台。
+    """
+    global _handler, _db_path, _verbose, _last_trace
+    _db_path = db_path
+    _verbose = verbose
+    _handler = AgentEvalCallbackHandler(verbose=verbose)
+    _last_trace = None
+
+
+def last_trace() -> dict[str, Any] | None:
+    """返回最近一次执行采集到的 trace（未采集过返回 None）。"""
+    return _last_trace
+
+
+def wrap(graph: Any) -> Any:
+    """包装 LangGraph graph，返回注入 callback 的包装对象。
+
+    必须先用 init() 初始化。包装对象只支持同步 invoke；
+    ainvoke / stream / astream 会抛 NotImplementedError。
+    用户自带 config 会与注入的 callbacks 合并（保留 thread_id 等）。
+    """
+    if _handler is None:
+        raise RuntimeError("agenteval.init() 必须先于 wrap() 调用")
+    return _TracedGraph(graph, _handler)
+
+
+def trace(func: Callable) -> Callable:
+    """装饰器：仅适用于签名包含 **kwargs 的函数。
+
+    装饰器会把 callbacks=[handler] 通过 kwargs 传给原函数，
+    原函数需要自行把 kwargs 传给 graph.invoke 的 config。
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        if _handler is None:
+            raise RuntimeError("agenteval.init() 必须先于使用 @agenteval.trace")
+        _handler.reset()
+        injected = dict(kwargs)
+        injected["callbacks"] = [_handler]
+        try:
+            result = func(*args, **injected)
+        except BaseException:
+            _finalize_trace(_handler)
+            raise
+        _finalize_trace(_handler)
+        return result
+
+    return wrapper
+
+
+class _TracedGraph:
+    """同步 invoke 的 graph 包装器（Week 1 只支持 invoke）。"""
+
+    def __init__(self, graph: Any, handler: AgentEvalCallbackHandler) -> None:
+        self._graph = graph
+        self._handler = handler
+
+    def invoke(self, input, config: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        self._handler.reset()
+        merged = _merge_config(config, {"callbacks": [self._handler]})
+        try:
+            result = self._graph.invoke(input, config=merged, **kwargs)
+        except BaseException:
+            _finalize_trace(self._handler)
+            raise
+        _finalize_trace(self._handler)
+        return result
+
+    def ainvoke(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError("agenteval Week 1 只支持同步 invoke，请改用 .invoke()")
+
+    def stream(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError("agenteval Week 1 只支持同步 invoke，请改用 .invoke()")
+
+    def astream(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError("agenteval Week 1 只支持同步 invoke，请改用 .invoke()")
+
+
+def _merge_config(
+    user_config: dict[str, Any] | None, injected: dict[str, Any]
+) -> dict[str, Any]:
+    """把注入的 callbacks 合并进用户 config，保留用户配置。"""
+    if not user_config:
+        return injected
+    merged = dict(user_config)
+    callbacks = list(merged.get("callbacks") or [])
+    callbacks.extend(injected["callbacks"])
+    merged["callbacks"] = callbacks
+    return merged
+
+
+def _finalize_trace(handler: AgentEvalCallbackHandler) -> None:
+    global _last_trace
+    try:
+        trace = build_trace(handler)
+    except ValueError:
+        logger.warning("未采集到 trace：Agent 未产生任何 callback 事件")
+        return
+    _last_trace = trace
+    if _verbose:
+        print(serialize_to_json(trace))

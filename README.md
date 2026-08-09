@@ -33,7 +33,7 @@ pip install agenteval
 
 ```python
 import agenteval
-agenteval.init()
+agenteval.init(verbose=True)  # verbose=True 时自动打印带注释的 trace
 
 graph = build_my_langgraph()          # 你的 LangGraph
 traced_graph = agenteval.wrap(graph)  # 一行包装，自动注入采集
@@ -42,7 +42,7 @@ result = traced_graph.invoke({"messages": [("user", "LangGraph 是什么？")]})
 # 自动输出带教学注释的 trace
 ```
 
-就这么简单，3 行代码接入。如果你的调用函数签名包含 `**kwargs`，也可以用 `@agenteval.trace` 装饰器（详见 [开发交接文档](./docs/HANDOVER.md)）。
+就这么简单，3 行代码接入。默认静默采集，任何时刻可用 `agenteval.last_trace()` 拿到最近一次执行的 trace JSON。如果你的调用函数签名包含 `**kwargs`，也可以用 `@agenteval.trace` 装饰器（详见 [开发交接文档](./docs/HANDOVER.md)）。
 
 ## 示例
 
