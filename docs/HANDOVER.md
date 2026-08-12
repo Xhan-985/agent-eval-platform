@@ -570,24 +570,47 @@ Week 1 的 `pyproject.toml` 只声明以下运行时依赖：
 
 **新增模块**：
 - `storage/db.py`：SQLite CRUD
-- `storage/schema.py`：traces 表
+- `storage/schema.py`：traces 表 + 常量定义
 - `web/app.py`：Streamlit 主入口
 - `web/list_view.py`：trace 列表页
 
 **接口变化**：
 - `__init__.py` 的 `init()` 真正创建数据库
 - `wrap()` 包装对象把 trace 写入 SQLite，而非仅打印
+- `init()` 新增可选参数 `experiment_id: str | None`，标记当前实验组（为 V2 方案对比预留）
 
 **数据表结构**：
 ```
-traces表：
+traces 表：
     id TEXT PRIMARY KEY
     created_at TIMESTAMP
-    status TEXT
+    status INTEGER          -- 0=success, 1=error, 2=running
     framework TEXT
     agent_name TEXT
-    trace_json TEXT
+    trace_json JSON         -- SQLite 3.9+ JSON1，支持 json_extract() 路径查询
+    experiment_id TEXT      -- 方案对比预留：同 experiment_id 的多次 trace 是同一实验不同方案
 ```
+
+**status 常量映射**（在 `storage/schema.py` 定义）：
+```python
+STATUS_SUCCESS = 0
+STATUS_ERROR = 1
+STATUS_RUNNING = 2
+
+STATUS_LABELS = {0: "success", 1: "error", 2: "running"}
+```
+
+**索引**：
+```sql
+CREATE INDEX idx_traces_created ON traces(created_at DESC);
+CREATE INDEX idx_traces_status ON traces(status);
+CREATE INDEX idx_traces_experiment ON traces(experiment_id);
+```
+
+**Week 2 补充任务（基于专家反馈）**：
+- `on_llm_end` 补充采集 `model_version`（从 `response.llm_output` 或 `invocation_params` 提取），存入 span metadata，确保同模型名不同版本的 trace 可区分
+- 列表页展示每条 trace 的总 token 数（从 trace_json 聚合）和总耗时（root_span 的 started_at → ended_at）
+- `experiment_id` 在 MVP 阶段不暴露 UI，但 `init(experiment_id="xxx")` 传入时写入数据库，为 V2 方案对比面板预留数据
 
 ### 8.2 Week 3：树状图可视化
 
