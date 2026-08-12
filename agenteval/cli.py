@@ -12,7 +12,8 @@ def web() -> None:
 
     from agenteval.web import app as app_module
 
-    subprocess.run(
+    proc = subprocess.run(
         [sys.executable, "-m", "streamlit", "run", app_module.__file__],
         check=False,
     )
+    sys.exit(proc.returncode)
