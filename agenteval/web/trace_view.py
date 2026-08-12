@@ -182,24 +182,22 @@ def _render_span_detail(spans: list[dict[str, Any]], llm_factory: Any) -> None:
 def _extract_model(trace: dict[str, Any]) -> str | None:
     """从首个 llm_call span 提取 model_version（best-effort）。"""
     root = trace.get("root_span")
-    found: str | None = [None]
+    return _first_model(root) if root else None
 
-    def _walk(span: dict[str, Any]) -> None:
-        if found[0]:
-            return
-        if span.get("type") == "llm_call":
-            meta = span.get("metadata") or {}
-            for key in ("model_version", "model_name"):
-                val = meta.get(key)
-                if isinstance(val, str) and val:
-                    found[0] = val
-                    return
-        for child in span.get("children", []):
-            _walk(child)
 
-    if root:
-        _walk(root)
-    return found[0]
+def _first_model(span: dict[str, Any]) -> str | None:
+    """深度优先找第一个含模型信息的 llm_call span。"""
+    if span.get("type") == "llm_call":
+        meta = span.get("metadata") or {}
+        for key in ("model_version", "model_name"):
+            val = meta.get(key)
+            if isinstance(val, str) and val:
+                return val
+    for child in span.get("children", []):
+        found = _first_model(child)
+        if found:
+            return found
+    return None
 
 
 def _emit_node(lines: list[str], span: dict[str, Any], parent_id: str | None) -> None:

@@ -14,4 +14,3 @@ font = "sans serif"
 
 [server]
 runOnSave = true
-headless = true

@@ -153,7 +153,6 @@ def _render_status_donut(dist: dict[str, int]) -> None:
 
 
 def _render_recent_table(rows: list[dict[str, Any]]) -> None:
-    from agenteval.web.list_view import _STATUS_EMOJI
     from agenteval.web.metrics import build_rows
 
     display = []
@@ -162,7 +161,7 @@ def _render_recent_table(rows: list[dict[str, Any]]) -> None:
             {
                 "问题": r["query"] or "—",
                 "时间": r["created_at"],
-                "状态": f"{_STATUS_EMOJI.get(r['status'], '')} {r['status']}",
+                "状态": f"{status_emoji(r['status'])} {r['status']}",
                 "Agent": r["agent_name"],
                 "Token": r["tokens"],
                 "耗时": r["duration"],
