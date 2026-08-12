@@ -39,6 +39,10 @@ examples = [
     "langchain-openai>=1.0",
 ]
 
+web = [
+    "streamlit>=1.30",
+]
+
 [project.urls]
 Homepage = "https://github.com/Xhan-985/agent-eval-platform"
 Repository = "https://github.com/Xhan-985/agent-eval-platform"

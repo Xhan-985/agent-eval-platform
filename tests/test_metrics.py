@@ -1,0 +1,124 @@
+"""列表页纯计算函数（token 聚合 / 耗时 / 行格式化）的单元测试。"""
+
+import json
+
+from agenteval.web.metrics import (
+    aggregate_total_tokens,
+    build_rows,
+    format_duration,
+    trace_duration_seconds,
+)
+
+
+def _llm_span(span_id, total_tokens, children=None):
+    return {
+        "span_id": span_id,
+        "type": "llm_call",
+        "name": "ChatOpenAI",
+        "input": {},
+        "output": {},
+        "error": None,
+        "annotation": "a",
+        "started_at": "2026-08-12T00:00:00+00:00",
+        "ended_at": "2026-08-12T00:00:01+00:00",
+        "metadata": {"token_usage": {"total_tokens": total_tokens}},
+        "children": children or [],
+    }
+
+
+def _trace(root_span):
+    return {
+        "trace_id": "t1",
+        "created_at": "2026-08-12T00:00:00+00:00",
+        "status": "success",
+        "framework": "langgraph",
+        "agent_name": "LangGraph",
+        "root_span": root_span,
+    }
+
+
+def test_aggregate_tokens_sums_nested_llm_spans():
+    root = {
+        "type": "agent_run",
+        "children": [
+            {"type": "node", "children": [_llm_span("l1", 10)]},
+            _llm_span("l2", 20),
+        ],
+    }
+    assert aggregate_total_tokens(_trace(root)) == 30
+
+
+def test_aggregate_tokens_accepts_json_string():
+    trace = _trace({"type": "agent_run", "children": [_llm_span("l1", 7)]})
+    assert aggregate_total_tokens(json.dumps(trace, ensure_ascii=False)) == 7
+
+
+def test_aggregate_tokens_missing_usage_is_zero():
+    span = {"type": "llm_call", "metadata": {}, "children": []}
+    assert aggregate_total_tokens(_trace(span)) == 0
+
+
+def test_duration_seconds_from_root_span():
+    root = {
+        "type": "agent_run",
+        "started_at": "2026-08-12T00:00:00+00:00",
+        "ended_at": "2026-08-12T00:00:03+00:00",
+        "children": [],
+    }
+    assert trace_duration_seconds(_trace(root)) == 3.0
+
+
+def test_duration_none_when_missing():
+    root = {
+        "type": "agent_run",
+        "started_at": "2026-08-12T00:00:00+00:00",
+        "ended_at": None,
+        "children": [],
+    }
+    assert trace_duration_seconds(_trace(root)) is None
+
+
+def test_format_duration():
+    assert format_duration(0.123) == "123ms"
+    assert format_duration(1.5) == "1.5s"
+    assert format_duration(None) == "-"
+
+
+def test_build_rows_maps_fields():
+    root = {
+        "type": "agent_run",
+        "started_at": "2026-08-12T00:00:00+00:00",
+        "ended_at": "2026-08-12T00:00:02+00:00",
+        "children": [_llm_span("l1", 42)],
+    }
+    rows = build_rows(
+        [
+            {
+                "id": "t1",
+                "created_at": "2026-08-12T00:00:00+00:00",
+                "status": 0,
+                "agent_name": "LangGraph",
+                "trace_json": json.dumps(_trace(root), ensure_ascii=False),
+                "experiment_id": "exp-a",
+            },
+            {
+                "id": "t2",
+                "created_at": "2026-08-11T00:00:00+00:00",
+                "status": 1,
+                "agent_name": "LangGraph",
+                "trace_json": json.dumps(_trace(root), ensure_ascii=False),
+                "experiment_id": None,
+            },
+        ]
+    )
+    assert rows[0] == {
+        "id": "t1",
+        "created_at": "2026-08-12T00:00:00+00:00",
+        "status": "success",
+        "agent_name": "LangGraph",
+        "tokens": 42,
+        "duration": "2.0s",
+        "experiment_id": "exp-a",
+    }
+    assert rows[1]["status"] == "error"
+    assert rows[1]["experiment_id"] == ""
