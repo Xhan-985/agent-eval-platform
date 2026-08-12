@@ -5,6 +5,7 @@ import json
 from agenteval.web.metrics import (
     aggregate_total_tokens,
     build_rows,
+    extract_query_preview,
     format_duration,
     trace_duration_seconds,
 )
@@ -84,6 +85,37 @@ def test_format_duration():
     assert format_duration(None) == "-"
 
 
+def test_extract_query_preview_from_query_field():
+    root = {"type": "agent_run", "input": {"query": "LangGraph 是什么？", "messages": []}}
+    assert extract_query_preview(_trace(root)) == "LangGraph 是什么？"
+
+
+def test_extract_query_preview_from_messages_tuple():
+    root = {"type": "agent_run", "input": {"messages": [["user", "给我讲个笑话"]]}}
+    assert extract_query_preview(_trace(root)) == "给我讲个笑话"
+
+
+def test_extract_query_preview_from_message_dict():
+    root = {
+        "type": "agent_run",
+        "input": {"messages": [{"type": "human", "content": "你好"}]},
+    }
+    assert extract_query_preview(_trace(root)) == "你好"
+
+
+def test_extract_query_preview_truncates_long_text():
+    long = "问题" * 100
+    root = {"type": "agent_run", "input": {"query": long}}
+    preview = extract_query_preview(_trace(root))
+    assert preview.endswith("…")
+    assert len(preview) <= 81
+
+
+def test_extract_query_preview_none_when_no_input():
+    root = {"type": "agent_run", "input": {}}
+    assert extract_query_preview(_trace(root)) is None
+
+
 def test_build_rows_maps_fields():
     root = {
         "type": "agent_run",
@@ -119,6 +151,8 @@ def test_build_rows_maps_fields():
         "tokens": 42,
         "duration": "2.0s",
         "experiment_id": "exp-a",
+        "query": "",
     }
     assert rows[1]["status"] == "error"
     assert rows[1]["experiment_id"] == ""
+    assert rows[1]["query"] == ""

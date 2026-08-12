@@ -94,10 +94,14 @@ agenteval-web          # 或 python -m agenteval web
 
 浏览器会自动打开 http://localhost:8501，页面包含：
 
-- **列表页**：最近执行的 trace（时间、状态、Agent、token、耗时），支持按状态筛选
-- **详情页**：graphviz 树状图，节点带类型图标、教学注释、耗时，出错节点红色高亮
-- **span 详情**：选中任意节点查看它的 input / output
-- **replay 面板**：LLM span 可改输入重跑，tool span 显示录播响应（不真实执行）
+- **仪表盘**：落地首页，KPI 概览（Trace 总数 / 成功率 / 总 Token / 平均耗时 / 错误数）、近 14 天趋势图、状态分布、最近 Trace 表
+- **列表页**：可交互表格（行选中进详情），支持按 Agent / 状态 / 关键词搜索与分页
+- **详情页**：顶部摘要卡（状态徽标、Agent、模型、总耗时、总 Token、span 数）+ 三视图 tabs
+  - **时间线**：横向瀑布图，按 span 起止与耗时排布、按类型着色、出错节点标红
+  - **调用树**：graphviz 树状图，节点带类型图标、教学注释、耗时
+  - **Span 列表**：平铺表，按类型/错误筛选
+- **span 详情**：下拉选 span 查看全文注释、耗时、token 用量、可折叠 input / output
+- **replay 面板**：LLM span 可改输入重跑（结构化原/新 output 对比 + replay 历史），tool span 显示录播响应（不真实执行）
 
 注意事项：
 

@@ -1,0 +1,17 @@
+# AgentEval Streamlit 主题配置
+# 运行 agenteval-web 时若 cwd 为本仓库则自动生效；中性专业风，避开默认绿。
+
+[client]
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#6366f1"          # indigo-500：品牌主色 / agent_run
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f1f5f9"  # slate-100：卡片、侧边栏
+textColor = "#0f172a"             # slate-900
+font = "sans serif"
+
+[server]
+runOnSave = true
+headless = true

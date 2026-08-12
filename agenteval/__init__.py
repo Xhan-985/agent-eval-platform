@@ -144,6 +144,8 @@ def _finalize_trace(handler: AgentEvalCallbackHandler) -> None:
     try:
         trace = build_trace(handler)
     except ValueError:
+        # 未采集到任何事件：清空上次 trace，避免 last_trace() 误返回历史值。
+        _last_trace = None
         logger.warning("未采集到 trace：Agent 未产生任何 callback 事件")
         return
     _last_trace = trace

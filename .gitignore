@@ -33,6 +33,7 @@ ENV/
 # Testing
 .pytest_cache/
 .pytest_tmp/
+.pytest_run_tmp/
 .coverage
 .coverage.*
 htmlcov/

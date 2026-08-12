@@ -83,7 +83,9 @@ def test_llm_replay_shows_output_comparison():
     markdown_values = [m.value for m in at.markdown]
     assert any("原 output" in v for v in markdown_values)
     assert any("新 output" in v for v in markdown_values)
-    assert any("new-answer" in v for v in markdown_values)
+    # 新 output 走结构化展示（st.code），不再用 escape 文本
+    code_values = [c.value for c in at.code]
+    assert any("new-answer" in v for v in code_values)
     assert not at.error
 
 
@@ -115,3 +117,15 @@ def test_replay_without_factory_shows_clear_error():
     at.button[0].click()
     at.run()
     assert at.error and any("llm_factory" in e.value for e in at.error)
+
+
+def test_error_hint_maps_auth_failure_to_actionable_hint():
+    from agenteval.web.replay_view import _error_hint
+
+    auth = _error_hint("AuthenticationError: 401 - incorrect api key")
+    assert auth and "Base URL" in auth
+    conn = _error_hint("APIConnectionError: timeout contacting host")
+    assert conn and "Base URL" in conn
+    model = _error_hint("NotFoundError: model gpt-99 does not exist")
+    assert model and "模型名" in model
+    assert _error_hint("something else") is None
