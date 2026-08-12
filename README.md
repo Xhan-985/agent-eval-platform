@@ -26,8 +26,16 @@ AgentEval 面向**学习者和初学者**，让你看懂 Agent 每一步在干�
 ### 安装
 
 ```bash
-pip install agenteval
+# PyPI 发布后（推荐，含 Web 界面与示例依赖）
+pip install "agenteval[web,examples]"
+
+# 发布前：从 GitHub 克隆安装
+git clone https://github.com/Xhan-985/agent-eval-platform.git
+cd agent-eval-platform
+pip install -e ".[web,examples]"
 ```
+
+只使用 SDK（不打开 Web 界面）时 `pip install agenteval` 即可；`[web]` 用于页面，`[examples]` 用于运行示例。
 
 ### 接入你的 LangGraph Agent
 
@@ -75,6 +83,27 @@ agenteval.init(
 ```
 
 DeepSeek 模型名形如 `deepseek-v4-flash` / `deepseek-v4-pro`。API key 建议放环境变量 `OPENAI_API_KEY` 或本地 `.env`（已被 gitignore），不要写进代码。
+
+### 启动 Web 界面
+
+安装时带上 `[web]` 依赖后，一条命令即可打开可视化页面：
+
+```bash
+agenteval-web          # 或 python -m agenteval web
+```
+
+浏览器会自动打开 http://localhost:8501，页面包含：
+
+- **列表页**：最近执行的 trace（时间、状态、Agent、token、耗时），支持按状态筛选
+- **详情页**：graphviz 树状图，节点带类型图标、教学注释、耗时，出错节点红色高亮
+- **span 详情**：选中任意节点查看它的 input / output
+- **replay 面板**：LLM span 可改输入重跑，tool span 显示录播响应（不真实执行）
+
+注意事项：
+
+- 页面默认读取**当前目录**的 `agenteval.db`（与运行 Agent 时一致）；如果 Agent 在其他目录运行，用环境变量 `AGENTEVAL_DB=/path/to/agenteval.db` 指定，或在页面侧边栏手动填写数据库路径
+- replay 的模型配置在页面侧边栏（模型名 / API Base URL / API Key），也可以用代码里的 `init(llm_factory=...)`
+- 界面为中文、单机本地工具（Streamlit），不会上传任何数据
 
 ## 示例
 
