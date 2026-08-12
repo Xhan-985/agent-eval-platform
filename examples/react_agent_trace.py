@@ -12,6 +12,7 @@
 真实模型配置（环境变量，.env 文件同样生效）：
     OPENAI_API_KEY  = DeepSeek / OpenAI 的 API key
     AGENTEVAL_MODEL = 模型名，默认 deepseek-v4-flash（可切换 deepseek-v4-pro）
+    --real 模式同时演示 init(llm_factory=...) 用法（详情页 replay 依赖它）
 """
 
 from __future__ import annotations
@@ -162,7 +163,21 @@ def main() -> None:
     _ensure_utf8_stdout()
     _load_dotenv_if_present()
     mode = "real" if "--real" in sys.argv else "fake"
-    agenteval.init(verbose=False)
+    if mode == "real":
+        from langchain_openai import ChatOpenAI
+
+        def factory(model_name: str):
+            """llm_factory 示例：接收模型名，返回 ChatModel 实例。"""
+            return ChatOpenAI(
+                model=model_name,
+                base_url=DEEPSEEK_BASE_URL,
+                api_key=os.environ.get("OPENAI_API_KEY"),
+                temperature=0,
+            )
+
+        agenteval.init(verbose=False, llm_factory=factory)
+    else:
+        agenteval.init(verbose=False)
     print(f"AgentEval 示例（{mode} 模式）")
     graph = build_real_graph() if mode == "real" else build_fake_graph()
 
