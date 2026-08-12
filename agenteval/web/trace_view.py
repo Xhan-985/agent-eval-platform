@@ -8,7 +8,9 @@ from typing import Any
 
 import streamlit as st
 
+import agenteval
 from agenteval.web.metrics import format_duration
+from agenteval.web.replay_view import render_replay
 
 ICONS = {
     "agent_run": "🤖",
@@ -63,6 +65,8 @@ def render_trace(
         st.json(span.get("input"))
     with st.expander("output", expanded=True):
         st.json(span.get("output"))
+
+    render_replay(span, agenteval._llm_factory)
 
 
 def _emit_node(lines: list[str], span: dict[str, Any], parent_id: str | None) -> None:
