@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+import threading
 
 from agenteval.storage.db import get_trace, init_db, insert_trace, list_traces
 from agenteval.storage.schema import STATUS_ERROR, STATUS_SUCCESS
@@ -95,3 +96,36 @@ def test_get_trace_missing_returns_none(tmp_path):
     db = str(tmp_path / "t.db")
     init_db(db)
     assert get_trace(db, "nope") is None
+
+
+def test_wal_mode_enabled(tmp_path):
+    db = str(tmp_path / "w.db")
+    init_db(db)
+    conn = sqlite3.connect(db)
+    mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+    conn.close()
+    assert mode == "wal"
+
+
+def test_concurrent_read_write_no_locked_error(tmp_path):
+    db = str(tmp_path / "c.db")
+    init_db(db)
+
+    def writer() -> None:
+        for i in range(10):
+            insert_trace(db, _trace(trace_id=f"w{i}"))
+
+    def reader() -> None:
+        for _ in range(30):
+            assert isinstance(list_traces(db), list)
+
+    threads = [
+        threading.Thread(target=writer),
+        threading.Thread(target=reader),
+        threading.Thread(target=reader),
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(list_traces(db)) == 10

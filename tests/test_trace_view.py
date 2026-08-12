@@ -1,5 +1,7 @@
 """trace 树状图（graphviz DOT 生成 + 详情页）的单元测试。"""
 
+import time
+
 from agenteval.web.trace_view import build_dot, flatten_spans
 
 
@@ -119,6 +121,21 @@ def test_build_dot_handles_missing_root():
     dot = build_dot({"trace_id": "x"})
     assert dot.startswith("digraph trace {")
     assert "[label=" not in dot
+
+
+def test_build_dot_large_trace_renders_quickly():
+    children = [
+        _span(f"n{i}", "node", f"node-{i}", annotation="这是一个较长的教学注释用于测试性能")
+        for i in range(120)
+    ]
+    trace = {
+        "root_span": _span("root", "agent_run", "LangGraph", children=children)
+    }
+    start = time.perf_counter()
+    dot = build_dot(trace)
+    elapsed = time.perf_counter() - start
+    assert dot.count("[label=") == 121
+    assert elapsed < 5.0
 
 
 def test_flatten_spans_returns_all_spans():
