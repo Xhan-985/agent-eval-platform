@@ -7,6 +7,7 @@ import pytest
 pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest
 
+import agenteval
 from agenteval.storage.db import init_db, insert_trace
 
 APP_PATH = Path(__file__).resolve().parent.parent / "agenteval" / "web" / "app.py"
@@ -94,3 +95,35 @@ def test_detail_back_button_returns_to_list(tmp_path, monkeypatch):
     back_button.click()
     at.run()
     assert at.subheader[0].value == "Trace 列表"
+
+
+def test_replay_sidebar_renders_config_inputs(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(agenteval, "_llm_factory", None)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    assert not at.exception
+    labels = [t.label for t in at.text_input]
+    assert "数据库路径" in labels
+    assert "模型名" in labels
+    assert "API Base URL" in labels
+    assert "API Key" in labels
+    assert agenteval._llm_factory is None
+
+
+def test_replay_sidebar_with_api_key_registers_factory(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(agenteval, "_llm_factory", None)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    api_key_input = next(t for t in at.text_input if t.label == "API Key")
+    api_key_input.set_value("sk-test")
+    at.run()
+    assert not at.exception
+    assert agenteval._llm_factory is not None

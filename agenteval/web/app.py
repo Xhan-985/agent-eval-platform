@@ -33,16 +33,18 @@ def main() -> None:
         "API Key", type="password", value=os.environ.get("OPENAI_API_KEY", "")
     )
     if api_key:
-        _FAKE_NAMES = {"FakeListChatModel", "unknown", "llm", ""}
+        fake_names = {"FakeListChatModel", "unknown", "llm", ""}
 
         def _factory(name: str):
             from langchain_openai import ChatOpenAI
-            effective = name if name and name not in _FAKE_NAMES else model_default
+
+            effective = name if name and name not in fake_names else model_default
             return ChatOpenAI(
                 model=effective,
                 api_key=api_key,
                 base_url=base_url,
             )
+
         agenteval.init(db_path=db_path, llm_factory=_factory)
     else:
         st.sidebar.info("配置 API Key 后可使用 replay 功能")
