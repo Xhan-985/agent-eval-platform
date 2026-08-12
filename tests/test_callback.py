@@ -108,6 +108,47 @@ def test_llm_end_captures_text_and_token_usage():
     assert state["ended_at"] is not None
 
 
+def test_llm_end_captures_model_version_from_llm_output():
+    h = AgentEvalCallbackHandler()
+    rid = uuid4()
+    h.on_llm_start({"name": "ChatOpenAI"}, ["prompt"], run_id=rid, parent_run_id=None)
+    response = _FakeLLMResponse()
+    response.llm_output = {
+        "token_usage": {"total_tokens": 5},
+        "model_version": "v4-flash-202608",
+    }
+    h.on_llm_end(response, run_id=rid, parent_run_id=None)
+    assert h._states[str(rid)]["metadata"]["model_version"] == "v4-flash-202608"
+
+
+def test_llm_end_model_version_falls_back_to_invocation_params():
+    h = AgentEvalCallbackHandler()
+    rid = uuid4()
+    h.on_chat_model_start(
+        {"name": "ChatOpenAI"},
+        [[HumanMessage(content="hi")]],
+        run_id=rid,
+        parent_run_id=None,
+        invocation_params={"model": "deepseek-v4-flash"},
+    )
+    h.on_llm_end(_FakeLLMResponse(), run_id=rid, parent_run_id=None)
+    assert h._states[str(rid)]["metadata"]["model_version"] == "deepseek-v4-flash"
+
+
+def test_llm_end_missing_model_version_does_not_raise():
+    h = AgentEvalCallbackHandler()
+    rid = uuid4()
+    h.on_chat_model_start(
+        {"name": "ChatOpenAI"},
+        [[HumanMessage(content="hi")]],
+        run_id=rid,
+        parent_run_id=None,
+        invocation_params={"temperature": 0},
+    )
+    h.on_llm_end(_FakeLLMResponse(), run_id=rid, parent_run_id=None)
+    assert "model_version" not in h._states[str(rid)]["metadata"]
+
+
 def test_chain_error_records_error_and_ends_span():
     h = AgentEvalCallbackHandler()
     rid = uuid4()

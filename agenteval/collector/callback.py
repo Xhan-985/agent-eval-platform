@@ -18,6 +18,26 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _extract_model_version(llm_output, invocation_params) -> str | None:
+    """从 llm_output 或 invocation_params 提取 model_version（.get() 兜底）。
+
+    不同模型返回结构不同：优先取 model_version/version 字段，
+    取不到时回退到 invocation_params 的 model id（如 deepseek-v4-flash）。
+    """
+    for source in (llm_output, invocation_params):
+        if not isinstance(source, dict):
+            continue
+        for key in ("model_version", "version"):
+            value = source.get(key)
+            if isinstance(value, str) and value:
+                return value
+    if isinstance(invocation_params, dict):
+        model = invocation_params.get("model")
+        if isinstance(model, str) and model:
+            return model
+    return None
+
+
 class AgentEvalCallbackHandler(BaseCallbackHandler):
     """接收 LangGraph 执行事件，维护扁平 span 状态与父子关系。
 
@@ -234,6 +254,11 @@ class AgentEvalCallbackHandler(BaseCallbackHandler):
             llm_output = getattr(response, "llm_output", None) if response is not None else None
             if llm_output and llm_output.get("token_usage"):
                 state["metadata"].setdefault("token_usage", llm_output["token_usage"])
+            model_version = _extract_model_version(
+                llm_output, state["metadata"].get("invocation_params")
+            )
+            if model_version:
+                state["metadata"]["model_version"] = model_version
             state["ended_at"] = _now()
 
         self._safe(_run)
