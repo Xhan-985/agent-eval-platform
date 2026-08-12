@@ -17,6 +17,7 @@ from typing import Any
 
 from .collector.callback import AgentEvalCallbackHandler
 from .collector.serializer import build_trace, serialize_to_json
+from .storage.db import init_db, insert_trace
 
 __version__ = "0.1.0"
 __all__ = ["init", "wrap", "trace", "last_trace", "__version__"]
@@ -26,20 +27,28 @@ logger = logging.getLogger("agenteval")
 _handler: AgentEvalCallbackHandler | None = None
 _db_path: str = "agenteval.db"
 _verbose: bool = False
+_experiment_id: str | None = None
 _last_trace: dict[str, Any] | None = None
 
 
-def init(db_path: str = "agenteval.db", verbose: bool = False) -> None:
+def init(
+    db_path: str = "agenteval.db",
+    verbose: bool = False,
+    experiment_id: str | None = None,
+) -> None:
     """初始化 AgentEval，创建采集 handler（幂等，可重复调用）。
 
-    Week 1 只记录 db_path，不创建数据库（Week 2 起用于存储 trace）。
+    自动创建 SQLite 数据库与 traces 表（db_path 目录需存在）。
+    experiment_id 用于标记实验组（V2 方案对比预留），不传则为 NULL。
     verbose=True 时，每次采集完成后会把 trace JSON 打印到控制台。
     """
-    global _handler, _db_path, _verbose, _last_trace
+    global _handler, _db_path, _verbose, _experiment_id, _last_trace
     _db_path = db_path
     _verbose = verbose
+    _experiment_id = experiment_id
     _handler = AgentEvalCallbackHandler(verbose=verbose)
     _last_trace = None
+    init_db(db_path)
 
 
 def last_trace() -> dict[str, Any] | None:
@@ -133,5 +142,14 @@ def _finalize_trace(handler: AgentEvalCallbackHandler) -> None:
         logger.warning("未采集到 trace：Agent 未产生任何 callback 事件")
         return
     _last_trace = trace
+    _persist_trace(trace)
     if _verbose:
         print(serialize_to_json(trace))
+
+
+def _persist_trace(trace: dict[str, Any]) -> None:
+    """把 trace 写入 SQLite；失败只告警，不影响 Agent 执行。"""
+    try:
+        insert_trace(_db_path, trace, experiment_id=_experiment_id)
+    except Exception:
+        logger.exception("trace 写入 SQLite 失败（已忽略，不影响 Agent 执行）")
