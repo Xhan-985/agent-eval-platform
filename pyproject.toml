@@ -48,6 +48,9 @@ Homepage = "https://github.com/Xhan-985/agent-eval-platform"
 Repository = "https://github.com/Xhan-985/agent-eval-platform"
 Issues = "https://github.com/Xhan-985/agent-eval-platform/issues"
 
+[project.scripts]
+agenteval-web = "agenteval.cli:web"
+
 [tool.hatch.build.targets.wheel]
 packages = ["agenteval"]
 
