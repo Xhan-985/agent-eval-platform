@@ -1,8 +1,7 @@
-"""trace 列表页（Streamlit UI）：状态筛选 + 表格 + 完整 JSON 查看。"""
+"""trace 列表页（Streamlit UI）：状态筛选 + 表格 + 进入详情导航。"""
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import streamlit as st
@@ -37,11 +36,15 @@ def render(traces: list[dict[str, Any]]) -> None:
     ]
     st.dataframe(display_rows, width="stretch", hide_index=True)
 
-    st.markdown("### 查看完整 trace JSON")
-    selected_id = st.selectbox("选择 trace_id", [row["id"] for row in rows])
-    selected = next((t for t in filtered if t["id"] == selected_id), None)
-    if selected is not None:
-        payload = selected["trace_json"]
-        data = json.loads(payload) if isinstance(payload, str) else payload
-        with st.expander("trace_json", expanded=True):
-            st.json(data)
+    st.markdown("### 进入详情")
+    for row in rows:
+        summary = (
+            f"{row['created_at']} ｜ {row['agent_name']} ｜ {row['status']} ｜ "
+            f"{row['tokens']} tokens ｜ {row['duration']}"
+            + (f" ｜ {row['experiment_id']}" if row["experiment_id"] else "")
+        )
+        col1, col2 = st.columns([4, 1])
+        col1.caption(summary)
+        if col2.button("查看详情", key=f"view-{row['id']}"):
+            st.session_state["selected_trace_id"] = row["id"]
+            st.rerun()

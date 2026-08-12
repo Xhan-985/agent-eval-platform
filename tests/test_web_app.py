@@ -63,3 +63,34 @@ def test_status_filter_shows_only_failed(tmp_path, monkeypatch):
     frame = at.dataframe[0].value
     statuses = set(frame["status"].tolist())
     assert statuses == {"❌ error"}
+
+
+def test_list_row_button_opens_detail(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    detail_button = next(b for b in at.button if b.label == "查看详情")
+    detail_button.click()
+    at.run()
+
+    assert at.subheader[0].value.startswith("Trace 详情")
+    assert len(at.get("graphviz_chart")) == 1
+    assert len(at.expander) == 2
+
+
+def test_detail_back_button_returns_to_list(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    at.session_state["selected_trace_id"] = "ok1"
+    at.run()
+    assert at.subheader[0].value.startswith("Trace 详情")
+
+    back_button = next(b for b in at.button if b.label == "← 返回列表")
+    back_button.click()
+    at.run()
+    assert at.subheader[0].value == "Trace 列表"
