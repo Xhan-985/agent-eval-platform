@@ -55,6 +55,7 @@ packages = ["agenteval"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v --tb=short"
+tmp_path_retention_policy = "none"
 
 [tool.ruff]
 line-length = 100
