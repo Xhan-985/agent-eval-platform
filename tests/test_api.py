@@ -37,6 +37,13 @@ def test_init_is_idempotent():
     assert agenteval._handler is not first
 
 
+def test_init_accepts_llm_factory():
+    agenteval.init(verbose=False, llm_factory=lambda model_name: model_name)
+    assert agenteval._llm_factory is not None
+    agenteval.init(verbose=False)
+    assert agenteval._llm_factory is None
+
+
 def test_wrap_invokes_and_collects_trace():
     agenteval.init(verbose=False)
     wrapped = agenteval.wrap(_build_graph())

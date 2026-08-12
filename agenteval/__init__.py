@@ -28,6 +28,7 @@ _handler: AgentEvalCallbackHandler | None = None
 _db_path: str = "agenteval.db"
 _verbose: bool = False
 _experiment_id: str | None = None
+_llm_factory: Callable[[str], Any] | None = None
 _last_trace: dict[str, Any] | None = None
 
 
@@ -35,17 +36,21 @@ def init(
     db_path: str = "agenteval.db",
     verbose: bool = False,
     experiment_id: str | None = None,
+    llm_factory: Callable[[str], Any] | None = None,
 ) -> None:
     """初始化 AgentEval，创建采集 handler（幂等，可重复调用）。
 
     自动创建 SQLite 数据库与 traces 表（db_path 目录需存在）。
     experiment_id 用于标记实验组（V2 方案对比预留），不传则为 NULL。
+    llm_factory 是 replay 用工厂函数（如 lambda model_name: ChatOpenAI(model=model_name)），
+    不配置时 replay 会给出明确提示，其余功能不受影响。
     verbose=True 时，每次采集完成后会把 trace JSON 打印到控制台。
     """
-    global _handler, _db_path, _verbose, _experiment_id, _last_trace
+    global _handler, _db_path, _verbose, _experiment_id, _llm_factory, _last_trace
     _db_path = db_path
     _verbose = verbose
     _experiment_id = experiment_id
+    _llm_factory = llm_factory
     _handler = AgentEvalCallbackHandler(verbose=verbose)
     _last_trace = None
     init_db(db_path)
