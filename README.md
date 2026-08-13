@@ -26,10 +26,10 @@ AgentEval 面向**学习者和初学者**，让你看懂 Agent 每一步在干�
 ### 安装
 
 ```bash
-# PyPI 发布后（推荐，含 Web 界面与示例依赖）
+# 推荐：PyPI 安装（含 Web 界面与示例依赖）
 pip install "agenteval-debugger[web,examples]"
 
-# 发布前：从 GitHub 克隆安装
+# 或从源码安装
 git clone https://github.com/Xhan-985/agent-eval-platform.git
 cd agent-eval-platform
 pip install -e ".[web,examples]"
