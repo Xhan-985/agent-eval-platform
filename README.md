@@ -27,7 +27,7 @@ AgentEval 面向**学习者和初学者**，让你看懂 Agent 每一步在干�
 
 ```bash
 # PyPI 发布后（推荐，含 Web 界面与示例依赖）
-pip install "agenteval[web,examples]"
+pip install "agenteval-debugger[web,examples]"
 
 # 发布前：从 GitHub 克隆安装
 git clone https://github.com/Xhan-985/agent-eval-platform.git
@@ -35,7 +35,7 @@ cd agent-eval-platform
 pip install -e ".[web,examples]"
 ```
 
-只使用 SDK（不打开 Web 界面）时 `pip install agenteval` 即可；`[web]` 用于页面，`[examples]` 用于运行示例。
+只使用 SDK（不打开 Web 界面）时 `pip install agenteval-debugger` 即可；`[web]` 用于页面，`[examples]` 用于运行示例。
 
 ### 接入你的 LangGraph Agent
 
