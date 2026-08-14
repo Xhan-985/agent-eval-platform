@@ -99,7 +99,7 @@ def test_selecting_trace_opens_detail(tmp_path, monkeypatch):
     at.run()
 
     assert at.subheader[0].value.startswith("Trace 详情")
-    assert len(at.get("iframe")) == 1
+    assert len(at.get("graphviz_chart")) == 1
     assert len(at.expander) == 2
 
 

@@ -12,7 +12,6 @@ from agenteval.web import timeline_view
 from agenteval.web.metrics import format_duration, format_duration_ms
 from agenteval.web.replay_view import render_replay
 from agenteval.web.theme import status_badge, status_emoji, type_label
-from agenteval.web.tree_svg import render_svg
 
 ICONS = {
     "agent_run": "🤖",
@@ -73,7 +72,7 @@ def render_trace(
         timeline_view.render(timeline_view.build_waterfall(trace))
 
     with tab_tree:
-        render_svg(trace)
+        st.graphviz_chart(build_dot(trace))
 
     with tab_list:
         _render_span_table(spans)

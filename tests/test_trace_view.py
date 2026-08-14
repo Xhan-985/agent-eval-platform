@@ -3,7 +3,6 @@
 import time
 
 from agenteval.web.trace_view import build_dot, flatten_spans
-from agenteval.web.tree_svg import build_svg
 
 
 def _span(
@@ -146,38 +145,6 @@ def test_flatten_spans_returns_all_spans():
     assert [s["span_id"] for s in spans] == ["root", "llm1", "tool1", "calc1"]
 
 
-def test_build_svg_contains_arrow_marker():
-    svg = build_svg(_trace())
-    assert "<marker" in svg
-    assert 'marker-end="url(#arrow)"' in svg
-
-
-def test_build_svg_edge_count_matches_span_count():
-    svg = build_svg(_trace())
-    assert svg.count('marker-end="url(#arrow)"') == 3  # 4 个 span，3 条边
-
-
-def test_build_svg_marks_error_span_red():
-    svg = build_svg(_trace())
-    assert "#fee2e2" in svg  # ERROR_FILL
-    assert "#ef4444" in svg  # ERROR_COLOR
-
-
-def test_build_svg_contains_names_annotation_and_duration():
-    svg = build_svg(_trace())
-    assert "LangGraph" in svg
-    assert "这是 Agent 的一次完整执行" in svg  # annotation 在 <title>
-    assert "500ms" in svg
-
-
-def test_build_svg_escapes_special_characters():
-    trace = _trace()
-    trace["root_span"]["children"][0]["name"] = 'a<b&"c'
-    svg = build_svg(trace)
-    assert "a&lt;b&amp;" in svg
-    assert 'a<b&"' not in svg
-
-
 def test_render_trace_shows_graph_and_span_selector():
     pytest = __import__("pytest")
     pytest.importorskip("streamlit")
@@ -191,5 +158,5 @@ def test_render_trace_shows_graph_and_span_selector():
     at = AppTest.from_string(code, default_timeout=20).run()
     assert not at.exception
     assert at.subheader[0].value.startswith("Trace 详情")
-    assert len(at.get("iframe")) == 1
+    assert len(at.get("graphviz_chart")) == 1
     assert len(at.expander) == 2
