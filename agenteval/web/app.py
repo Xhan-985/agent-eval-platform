@@ -12,9 +12,23 @@ from agenteval.web.dashboard_view import render as render_dashboard
 from agenteval.web.list_view import render as render_list
 from agenteval.web.trace_view import render_trace
 
+MODEL_OPTIONS = {
+    "deepseek-v4-flash": "deepseek-v4-flash",
+    "deepseek-v4-pro": "deepseek-v4-pro",
+    "gpt-4o-mini": "gpt-4o-mini",
+    "gpt-4o": "gpt-4o",
+    "qwen2.5:7b（本地 Ollama）": "qwen2.5:7b",
+    "自定义…": "__custom__",
+}
+
 
 def main() -> None:
-    st.set_page_config(page_title="AgentEval", page_icon="🤖", layout="wide")
+    st.set_page_config(
+        page_title="AgentEval",
+        page_icon="🤖",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
     st.title("AgentEval — Agent 执行调试器")
 
     db_path = st.sidebar.text_input(
@@ -31,7 +45,15 @@ def main() -> None:
 
     # Replay LLM 配置（侧边栏）
     st.sidebar.markdown("### Replay LLM")
-    model_default = st.sidebar.text_input("模型名", value="gpt-4o-mini", key="llm_model")
+    model_choice = st.sidebar.selectbox(
+        "模型名", list(MODEL_OPTIONS), key="llm_model"
+    )
+    if MODEL_OPTIONS[model_choice] == "__custom__":
+        model_default = st.sidebar.text_input(
+            "自定义模型名", value="", key="llm_model_custom"
+        )
+    else:
+        model_default = MODEL_OPTIONS[model_choice]
     base_url = st.sidebar.text_input(
         "API Base URL",
         value="https://api.openai.com/v1",
@@ -71,9 +93,8 @@ def main() -> None:
 
     selected_id = st.session_state.get("selected_trace_id")
     if selected_id is not None:
-        if st.button("← 返回列表"):
+        if st.button("← 返回列表", type="primary"):
             st.session_state["selected_trace_id"] = None
-            st.session_state["clear_table_selection"] = True
             st.rerun()
         trace = get_trace(db_path, selected_id)
         if trace is not None:

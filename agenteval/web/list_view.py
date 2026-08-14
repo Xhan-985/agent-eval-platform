@@ -1,4 +1,4 @@
-"""trace 列表页（Streamlit UI）：搜索 + 状态/Agent 筛选 + 分页 + 行选中进详情。"""
+"""trace 列表页（Streamlit UI）：搜索 + 状态/Agent/时间段筛选 + 分页 + 行按钮进详情。"""
 
 from __future__ import annotations
 
@@ -8,24 +8,18 @@ from typing import Any
 import streamlit as st
 
 from agenteval.storage.schema import STATUS_ERROR, STATUS_SUCCESS
-from agenteval.web.metrics import build_rows
+from agenteval.web.row_buttons import render_row_buttons
 
-_STATUS_EMOJI = {"success": "✅", "error": "❌", "running": "⏳", "unknown": "❓"}
 _FILTERS = {"全部": None, "成功": STATUS_SUCCESS, "失败": STATUS_ERROR}
-PAGE_SIZE = 15
+PAGE_SIZE = 10
 
 
 def render(traces: list[dict[str, Any]]) -> None:
-    """渲染 trace 列表：工具栏（搜索/状态/Agent）+ 分页表格 + 行选中进详情。"""
+    """渲染 trace 列表：工具栏（搜索/状态/Agent/时间段）+ 分页 + 行按钮进详情。"""
     st.subheader("Trace 列表")
     if not traces:
         st.info("暂无 trace。用 agenteval 接入 Agent 并运行后，trace 会自动入库。")
         return
-
-    # 返回列表时清掉表格选中，避免立即重新跳转详情
-    if st.session_state.get("clear_table_selection"):
-        st.session_state.pop("trace_table", None)
-        st.session_state["clear_table_selection"] = False
 
     filtered = _apply_filters(traces)
     if not filtered:
@@ -34,29 +28,11 @@ def render(traces: list[dict[str, Any]]) -> None:
 
     page = _render_pagination(len(filtered))
     page_rows = filtered[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
-
-    display = _display_rows(page_rows)
-    event = st.dataframe(
-        display,
-        width="stretch",
-        hide_index=True,
-        on_select="rerun",
-        key="trace_table",
-        column_config={
-            "问题": st.column_config.TextColumn(width="large"),
-            "时间": st.column_config.TextColumn(width="medium"),
-        },
-    )
-    selected = event.selection.rows
-    if selected:
-        idx = selected[0]
-        st.session_state["selected_trace_id"] = page_rows[idx]["id"]
-        st.session_state["list_page"] = page
-        st.rerun()
+    render_row_buttons(page_rows, key_prefix="list")
 
 
 def _apply_filters(traces: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """按搜索词、状态、Agent 过滤。"""
+    """按搜索词、状态、Agent、时间段过滤。"""
     c1, c2 = st.columns([2, 1])
     with c1:
         search = st.text_input(
@@ -68,6 +44,7 @@ def _apply_filters(traces: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     agents = sorted({t["agent_name"] for t in traces if t.get("agent_name")})
     selected_agents = st.multiselect("Agent 筛选", agents, default=[], key="list_agents")
+    date_range = st.date_input("时间范围", value=(), key="list_date_range")
 
     needle = search.strip().lower()
     result = []
@@ -84,6 +61,15 @@ def _apply_filters(traces: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if needle not in hay:
                 continue
         result.append(t)
+
+    if date_range and len(date_range) == 2 and all(date_range):
+        start_day = date_range[0].isoformat()
+        end_day = date_range[1].isoformat()
+        result = [
+            t
+            for t in result
+            if start_day <= (t.get("created_at") or "")[:10] <= end_day
+        ]
     return result
 
 
@@ -103,22 +89,3 @@ def _render_pagination(total: int) -> int:
         st.session_state["list_page"] = page
         st.rerun()
     return page
-
-
-def _display_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """把数据库行转成表格展示行。"""
-    display = []
-    for r in build_rows(rows):
-        status_text = r["status"]
-        display.append(
-            {
-                "问题": r["query"] or "—",
-                "时间": r["created_at"],
-                "状态": f"{_STATUS_EMOJI.get(status_text, '')} {status_text}",
-                "Agent": r["agent_name"],
-                "Token": r["tokens"],
-                "耗时": r["duration"],
-                "实验": r["experiment_id"] or "—",
-            }
-        )
-    return display

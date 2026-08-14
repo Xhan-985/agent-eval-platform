@@ -27,7 +27,7 @@ def build_dot(trace: dict[str, Any]) -> str:
     """把 trace JSON 转成 graphviz DOT 字符串（纯函数，便于测试）。"""
     lines = [
         "digraph trace {",
-        '  rankdir="TB";',
+        '  rankdir="LR";',
         "  graph [nodesep=0.25, ranksep=0.35];",
         '  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10];',
     ]

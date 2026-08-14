@@ -153,30 +153,6 @@ def _render_status_donut(dist: dict[str, int]) -> None:
 
 
 def _render_recent_table(rows: list[dict[str, Any]]) -> None:
-    from agenteval.web.metrics import build_rows
+    from agenteval.web.row_buttons import render_row_buttons
 
-    display = []
-    for r in build_rows(rows):
-        display.append(
-            {
-                "问题": r["query"] or "—",
-                "时间": r["created_at"],
-                "状态": f"{status_emoji(r['status'])} {r['status']}",
-                "Agent": r["agent_name"],
-                "Token": r["tokens"],
-                "耗时": r["duration"],
-            }
-        )
-    event = st.dataframe(
-        display,
-        width="stretch",
-        hide_index=True,
-        on_select="rerun",
-        key="dash_recent_table",
-        column_config={"问题": st.column_config.TextColumn(width="large")},
-    )
-    selected = event.selection.rows
-    if selected:
-        st.session_state["selected_trace_id"] = rows[selected[0]]["id"]
-        st.session_state["clear_table_selection"] = True
-        st.rerun()
+    render_row_buttons(rows, key_prefix="dash")

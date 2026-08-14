@@ -61,6 +61,7 @@ def test_build_dot_is_valid_shell():
     dot = build_dot(_trace())
     assert dot.startswith("digraph trace {")
     assert dot.endswith("}")
+    assert 'rankdir="LR"' in dot
 
 
 def test_build_dot_contains_all_nodes_and_edges():
