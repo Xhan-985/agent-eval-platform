@@ -182,7 +182,7 @@ def main() -> None:
     graph = build_real_graph() if mode == "real" else build_fake_graph()
 
     # 复用同一个包装对象：验证每次 invoke 生成独立 trace
-    wrapped = agenteval.wrap(graph)
+    wrapped = agenteval.wrap(graph, name="ReAct 示例")
     run_case("场景 1：正常调用", wrapped, mode, "LangGraph 是什么？")
     run_case("场景 2：tool 抛异常", wrapped, mode, "boom 测试")
     run_case("场景 3：多轮调用（第二次）", wrapped, mode, "给我讲个笑话")

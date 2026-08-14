@@ -70,7 +70,7 @@ def main() -> None:
         graph = build_fake_graph()
         input_data = {"query": "LangGraph 是什么？", "messages": []}
 
-    agenteval.wrap(graph).invoke(input_data)
+    agenteval.wrap(graph, name="Replay 演示").invoke(input_data)
     trace = agenteval.last_trace()
     print("trace status:", trace["status"])
 

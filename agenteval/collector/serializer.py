@@ -25,7 +25,7 @@ def build_trace(handler: AgentEvalCallbackHandler) -> dict[str, Any]:
         created_at=datetime.now(UTC).isoformat(),
         status="error" if _has_error(root_span) else "success",
         framework="langgraph",
-        agent_name=root_span["name"],
+        agent_name=handler.agent_name or root_span["name"],
         root_span=root_span,
     )
     return dict(trace)

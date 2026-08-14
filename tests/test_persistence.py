@@ -52,6 +52,16 @@ def test_wrap_invoke_persists_trace(tmp_path):
     assert agenteval.last_trace()["trace_id"] == row["id"]
 
 
+def test_wrap_agent_name_persisted(tmp_path):
+    db = str(tmp_path / "a.db")
+    agenteval.init(db_path=db)
+    agenteval.wrap(_build_graph(), name="搜索Agent").invoke(
+        {"query": "q", "messages": []}
+    )
+    row = get_trace(db, agenteval.last_trace()["trace_id"])
+    assert row["agent_name"] == "搜索Agent"
+
+
 def test_experiment_id_persisted(tmp_path):
     db = str(tmp_path / "a.db")
     agenteval.init(db_path=db, experiment_id="test1")

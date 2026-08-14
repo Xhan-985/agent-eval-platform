@@ -54,6 +54,20 @@ def test_wrap_invokes_and_collects_trace():
     assert trace["root_span"]["type"] == "agent_run"
 
 
+def test_wrap_accepts_agent_name():
+    agenteval.init(verbose=False)
+    wrapped = agenteval.wrap(_build_graph(), name="搜索Agent")
+    wrapped.invoke({"query": "q", "messages": []})
+    assert agenteval.last_trace()["agent_name"] == "搜索Agent"
+
+
+def test_wrap_without_name_falls_back_to_graph_name():
+    agenteval.init(verbose=False)
+    wrapped = agenteval.wrap(_build_graph())
+    wrapped.invoke({"query": "q", "messages": []})
+    assert agenteval.last_trace()["agent_name"] == "LangGraph"
+
+
 def test_wrap_merges_user_config():
     agenteval.init(verbose=False)
 

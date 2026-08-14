@@ -70,6 +70,8 @@ result = traced_graph.invoke({"messages": [("user", "LangGraph 是什么？")]})
 
 就这么简单，3 行代码接入。默认静默采集，任何时刻可用 `agenteval.last_trace()` 拿到最近一次执行的 trace JSON。如果你的调用函数签名包含 `**kwargs`，也可以用 `@agenteval.trace` 装饰器（详见 [开发交接文档](./docs/HANDOVER.md)）。
 
+**给 Agent 命名**：列表页的"Agent"列默认显示 LangGraph 图的默认名（`LangGraph`），用 `agenteval.wrap(graph, name="我的搜索Agent")` 可以给每次执行的 agent 起个有意义的名字，方便在列表里区分不同任务。
+
 ### 安全 replay（LLM 节点重跑）
 
 Web 详情页选中 LLM span 后，可修改 input 并重跑；tool span 只回放录播响应，**不会真实执行**（避免发邮件、写库等副作用）。

@@ -48,6 +48,8 @@ class AgentEvalCallbackHandler(BaseCallbackHandler):
     def __init__(self, verbose: bool = False) -> None:
         super().__init__()
         self._verbose = verbose
+        # 用户通过 wrap(graph, name=...) 指定的 agent 名；None 时用图名/根 span 名。
+        self.agent_name: str | None = None
         self.reset()
 
     def reset(self) -> None:

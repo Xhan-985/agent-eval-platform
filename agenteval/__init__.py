@@ -61,15 +61,18 @@ def last_trace() -> dict[str, Any] | None:
     return _last_trace
 
 
-def wrap(graph: Any) -> Any:
+def wrap(graph: Any, name: str | None = None) -> Any:
     """包装 LangGraph graph，返回注入 callback 的包装对象。
 
     必须先用 init() 初始化。包装对象只支持同步 invoke；
     ainvoke / stream / astream 会抛 NotImplementedError。
     用户自带 config 会与注入的 callbacks 合并（保留 thread_id 等）。
+    name 用于给 Agent 命名（列表页 Agent 列显示）；不传时回退到图的
+    graph.name（LangGraph 默认 "LangGraph"）。
     """
     if _handler is None:
         raise RuntimeError("agenteval.init() 必须先于 wrap() 调用")
+    _handler.agent_name = name if name is not None else getattr(graph, "name", None)
     return _TracedGraph(graph, _handler)
 
 
