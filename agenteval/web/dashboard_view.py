@@ -153,6 +153,6 @@ def _render_status_donut(dist: dict[str, int]) -> None:
 
 
 def _render_recent_table(rows: list[dict[str, Any]]) -> None:
-    from agenteval.web.row_buttons import render_row_buttons
+    from agenteval.web.trace_table import render_trace_table
 
-    render_row_buttons(rows, key_prefix="dash")
+    render_trace_table(rows, key_prefix="dash")

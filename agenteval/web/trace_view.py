@@ -28,7 +28,8 @@ def build_dot(trace: dict[str, Any]) -> str:
     lines = [
         "digraph trace {",
         '  rankdir="LR";',
-        "  graph [nodesep=0.25, ranksep=0.35];",
+        "  graph [nodesep=0.25, ranksep=0.5];",
+        '  edge [dir="forward", arrowhead="normal"];',
         '  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10];',
     ]
     root = trace.get("root_span")

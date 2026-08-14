@@ -70,8 +70,9 @@ def test_list_page_renders_with_data(tmp_path, monkeypatch):
     assert not at.exception
     _goto_list(at)
     assert at.subheader[0].value == "Trace 列表"
-    row_buttons = [b for b in at.button if b.label.startswith("🆔")]
-    assert len(row_buttons) == 2
+    assert len(at.dataframe) == 1
+    view_button = next(b for b in at.button if b.label == "查看选中 Trace 详情")
+    assert view_button.disabled
 
 
 def test_status_filter_shows_only_failed(tmp_path, monkeypatch):
@@ -82,23 +83,9 @@ def test_status_filter_shows_only_failed(tmp_path, monkeypatch):
     at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
     _goto_list(at)
     at.selectbox[0].select("失败").run()
-    row_buttons = [b for b in at.button if b.label.startswith("🆔")]
-    assert row_buttons
-    assert all("失败" in b.label for b in row_buttons)
-    assert all("成功" not in b.label for b in row_buttons)
-
-
-def test_row_button_click_opens_detail(tmp_path, monkeypatch):
-    db = str(tmp_path / "web.db")
-    _seed(db)
-    monkeypatch.setenv("AGENTEVAL_DB", db)
-
-    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
-    _goto_list(at)
-    target = next(b for b in at.button if b.label.startswith("🆔") and "ok1" in b.label)
-    target.click()
-    at.run()
-    assert at.subheader[0].value.startswith("Trace 详情")
+    frame = at.dataframe[0].value
+    statuses = set(frame["状态"].tolist())
+    assert statuses == {"❌ 失败"}
 
 
 def test_selecting_trace_opens_detail(tmp_path, monkeypatch):

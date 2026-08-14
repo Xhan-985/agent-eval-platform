@@ -95,6 +95,7 @@ def main() -> None:
     if selected_id is not None:
         if st.button("← 返回列表", type="primary"):
             st.session_state["selected_trace_id"] = None
+            st.session_state["clear_table_selection"] = True
             st.rerun()
         trace = get_trace(db_path, selected_id)
         if trace is not None:

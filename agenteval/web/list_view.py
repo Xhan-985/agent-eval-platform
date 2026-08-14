@@ -8,7 +8,7 @@ from typing import Any
 import streamlit as st
 
 from agenteval.storage.schema import STATUS_ERROR, STATUS_SUCCESS
-from agenteval.web.row_buttons import render_row_buttons
+from agenteval.web.trace_table import render_trace_table
 
 _FILTERS = {"全部": None, "成功": STATUS_SUCCESS, "失败": STATUS_ERROR}
 PAGE_SIZE = 10
@@ -28,7 +28,10 @@ def render(traces: list[dict[str, Any]]) -> None:
 
     page = _render_pagination(len(filtered))
     page_rows = filtered[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
-    render_row_buttons(page_rows, key_prefix="list")
+    if st.session_state.get("clear_table_selection"):
+        st.session_state.pop("list_table", None)
+        st.session_state["clear_table_selection"] = False
+    render_trace_table(page_rows, key_prefix="list")
 
 
 def _apply_filters(traces: list[dict[str, Any]]) -> list[dict[str, Any]]:
