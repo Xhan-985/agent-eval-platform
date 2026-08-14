@@ -37,6 +37,24 @@ pip install -e ".[web,examples]"
 
 只使用 SDK（不打开 Web 界面）时 `pip install agenteval-debugger` 即可；`[web]` 用于页面，`[examples]` 用于运行示例。
 
+> 💡 **推荐在独立虚拟环境中安装**，避免与机器上已有的包（如 TensorFlow、旧版 protobuf 等）产生依赖冲突：
+>
+> ```powershell
+> # Windows
+> python -m venv agenteval-venv
+> agenteval-venv\Scripts\activate
+> pip install "agenteval-debugger[web,examples]"
+> ```
+>
+> ```bash
+> # macOS / Linux
+> python -m venv agenteval-venv
+> source agenteval-venv/bin/activate
+> pip install "agenteval-debugger[web,examples]"
+> ```
+>
+> 国内网络环境可用镜像加速（清华源示例）：`pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "agenteval-debugger[web,examples]"`
+
 ### 接入你的 LangGraph Agent
 
 ```python
