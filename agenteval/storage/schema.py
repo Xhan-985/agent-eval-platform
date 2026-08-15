@@ -1,10 +1,48 @@
 """存储层表结构定义与 status 常量映射。"""
 
+from typing import Any
+
 STATUS_SUCCESS = 0
 STATUS_ERROR = 1
 STATUS_RUNNING = 2
 
 STATUS_LABELS = {0: "success", 1: "error", 2: "running"}
+STATUS_CN = {"success": "成功", "error": "失败", "running": "运行中"}
+
+# 常用 LangGraph 节点名 → 中文（展示层翻译用，不影响存储数据与 replay）
+NODE_NAME_CN: dict[str, str] = {
+    "analyze": "分析",
+    "call_tools": "调用工具",
+    "tools": "调用工具",
+    "agent": "智能体",
+    "reason": "推理",
+    "reasoning": "推理",
+    "planner": "规划",
+    "plan": "规划",
+    "router": "路由",
+    "route": "路由",
+    "search": "搜索",
+    "retriever": "检索",
+    "retrieve": "检索",
+    "calculator": "计算器",
+    "answer": "回答",
+    "respond": "回答",
+    "generate": "生成",
+    "supervisor": "监督",
+    "grader": "评估",
+    "reflection": "反思",
+    "human": "人工确认",
+    "validate": "校验",
+    "parse": "解析",
+    "extract": "提取",
+}
+
+
+def display_span_name(name: Any) -> str:
+    """把 span 名称翻译成中文；未知名称原样返回。"""
+    if not name:
+        return ""
+    return NODE_NAME_CN.get(str(name), str(name))
 
 # schema 版本：v1 初始表；v2 新增 total_tokens/duration_ms/span_count 冗余汇总列；
 # v3 新增 query_preview 列（首条用户输入预览，列表/仪表盘据此区分各 trace）。

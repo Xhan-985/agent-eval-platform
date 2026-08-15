@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from agenteval.collector.metrics import (
@@ -26,7 +27,12 @@ __all__ = [
     "format_duration",
     "format_duration_ms",
     "build_rows",
+    "trace_select_label",
 ]
+
+_UUID_RE = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
 
 
 def format_duration(seconds: float | None) -> str:
@@ -74,3 +80,19 @@ def build_rows(traces: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def trace_select_label(t: dict[str, Any]) -> str:
+    """trace 下拉选项标签：对话内容 + Agent + token 消耗（不含 UUID）。"""
+    query = _shorten_uuids((t.get("query_preview") or "").strip())
+    agent = t.get("agent_name") or "?"
+    tokens = int(t.get("total_tokens") or 0)
+    token_bits = f" · {tokens:,} tokens" if tokens else ""
+    if query:
+        return f"{query} · {agent}{token_bits}"
+    return f"{agent}{token_bits}"
+
+
+def _shorten_uuids(text: str) -> str:
+    """把文本里的完整 UUID 缩成前 8 位，避免下拉选项像乱码。"""
+    return _UUID_RE.sub(lambda m: m.group(0)[:8], text)

@@ -8,6 +8,7 @@ from agenteval.web.metrics import (
     extract_query_preview,
     format_duration,
     trace_duration_seconds,
+    trace_select_label,
 )
 
 
@@ -156,3 +157,47 @@ def test_build_rows_maps_fields():
     assert rows[1]["status"] == "error"
     assert rows[1]["experiment_id"] == ""
     assert rows[1]["query"] == ""
+
+
+def test_trace_select_label_prefers_query_preview():
+    label = trace_select_label(
+        {
+            "id": "b241b3a0-97c3-470b-85d3-20806a56575c",
+            "agent_name": "ReAct 示例",
+            "query_preview": "给我讲个笑话",
+            "total_tokens": 1234,
+        }
+    )
+    assert label == "给我讲个笑话 · ReAct 示例 · 1,234 tokens"
+
+
+def test_trace_select_label_falls_back_to_agent():
+    label = trace_select_label(
+        {"id": "12345678-1234", "agent_name": "LangGraph", "query_preview": ""}
+    )
+    assert label == "LangGraph"
+
+
+def test_trace_select_label_omits_zero_tokens():
+    label = trace_select_label(
+        {
+            "id": "x",
+            "agent_name": "ReAct 示例",
+            "query_preview": "你好",
+            "total_tokens": 0,
+        }
+    )
+    assert label == "你好 · ReAct 示例"
+
+
+def test_trace_select_label_shortens_embedded_uuid():
+    label = trace_select_label(
+        {
+            "id": "x",
+            "agent_name": "诊断助手",
+            "query_preview": "请诊断 trace 59f4f97a-c584-46d1-8a13-0adaafc669d4",
+            "total_tokens": 0,
+        }
+    )
+    assert label == "请诊断 trace 59f4f97a · 诊断助手"
+    assert "-c584-46d1" not in label

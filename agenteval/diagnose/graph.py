@@ -93,15 +93,15 @@ def build_diagnose_graph(llm: Any, max_steps: int = 8) -> Any:
         return "finish"
 
     graph = StateGraph(DiagnoseState)
-    graph.add_node("analyze", analyze)
-    graph.add_node("call_tools", call_tools)
-    graph.add_edge(START, "analyze")
+    graph.add_node("分析", analyze)
+    graph.add_node("调用工具", call_tools)
+    graph.add_edge(START, "分析")
     graph.add_conditional_edges(
-        "analyze",
+        "分析",
         route,
-        {"call_tools": "call_tools", "finish": END},
+        {"call_tools": "调用工具", "finish": END},
     )
-    graph.add_edge("call_tools", "analyze")
+    graph.add_edge("调用工具", "分析")
     return graph.compile()
 
 

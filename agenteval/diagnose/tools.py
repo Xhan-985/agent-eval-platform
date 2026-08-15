@@ -10,8 +10,16 @@ from datetime import datetime
 from typing import Any
 
 from agenteval.storage.db import get_trace as _load_trace_row
+from agenteval.storage.schema import STATUS_CN, display_span_name
 
 __all__ = ["get_trace", "get_span", "compare_traces", "TOOL_SPECS", "TOOL_DISPATCH"]
+
+_SPAN_TYPE_CN: dict[str, str] = {
+    "agent_run": "智能体运行",
+    "node": "节点",
+    "llm_call": "模型调用",
+    "tool_call": "工具调用",
+}
 
 
 def get_trace(db_path: str, trace_id: str) -> dict[str, Any] | None:
@@ -140,25 +148,28 @@ def _diff_spans(
     common = min(len(spans_a), len(spans_b))
     for i in range(common):
         a, b = spans_a[i], spans_b[i]
+        base = {
+            "index": i,
+            "span_id_a": a["span_id"],
+            "span_id_b": b["span_id"],
+            "type_a": a["type"],
+            "type_b": b["type"],
+            "name_a": a["name"],
+            "name_b": b["name"],
+        }
         if a["type"] != b["type"] or a["name"] != b["name"]:
             differences.append(
                 {
-                    "index": i,
-                    "span_id_a": a["span_id"],
-                    "span_id_b": b["span_id"],
+                    **base,
                     "field": "structure",
-                    "value_a": f"{a['type']}/{a['name']}",
-                    "value_b": f"{b['type']}/{b['name']}",
+                    "value_a": _span_label_cn(a["type"], a["name"]),
+                    "value_b": _span_label_cn(b["type"], b["name"]),
                 }
             )
         if a["error"] != b["error"]:
             differences.append(
                 {
-                    "index": i,
-                    "span_id_a": a["span_id"],
-                    "span_id_b": b["span_id"],
-                    "name_a": a["name"],
-                    "name_b": b["name"],
+                    **base,
                     "field": "error",
                     "value_a": a["error"],
                     "value_b": b["error"],
@@ -167,11 +178,7 @@ def _diff_spans(
         if a["duration_ms"] != b["duration_ms"]:
             differences.append(
                 {
-                    "index": i,
-                    "span_id_a": a["span_id"],
-                    "span_id_b": b["span_id"],
-                    "name_a": a["name"],
-                    "name_b": b["name"],
+                    **base,
                     "field": "duration_ms",
                     "value_a": a["duration_ms"],
                     "value_b": b["duration_ms"],
@@ -180,9 +187,7 @@ def _diff_spans(
         if a.get("annotation") != b.get("annotation"):
             differences.append(
                 {
-                    "index": i,
-                    "span_id_a": a["span_id"],
-                    "span_id_b": b["span_id"],
+                    **base,
                     "field": "annotation",
                     "value_a": _shorten(a.get("annotation")),
                     "value_b": _shorten(b.get("annotation")),
@@ -194,8 +199,14 @@ def _diff_spans(
                 "index": i,
                 "span_id_a": spans_a[i]["span_id"],
                 "span_id_b": None,
+                "type_a": spans_a[i]["type"],
+                "type_b": None,
+                "name_a": spans_a[i]["name"],
+                "name_b": None,
                 "field": "exists_only_in_a",
-                "value_a": f"{spans_a[i]['type']}/{spans_a[i]['name']}",
+                "value_a": _span_label_cn(
+                    spans_a[i]["type"], spans_a[i]["name"]
+                ),
                 "value_b": None,
             }
         )
@@ -205,9 +216,15 @@ def _diff_spans(
                 "index": i,
                 "span_id_a": None,
                 "span_id_b": spans_b[i]["span_id"],
+                "type_a": None,
+                "type_b": spans_b[i]["type"],
+                "name_a": None,
+                "name_b": spans_b[i]["name"],
                 "field": "exists_only_in_b",
                 "value_a": None,
-                "value_b": f"{spans_b[i]['type']}/{spans_b[i]['name']}",
+                "value_b": _span_label_cn(
+                    spans_b[i]["type"], spans_b[i]["name"]
+                ),
             }
         )
     return differences[:20]
@@ -221,7 +238,10 @@ def _summarize_diff(
     """把差异压缩成一句中文摘要，直接作为工具结果给 LLM 看。"""
     parts: list[str] = []
     if meta_a["status"] != meta_b["status"]:
-        parts.append(f"状态不同：{meta_a['status']} vs {meta_b['status']}")
+        parts.append(
+            f"状态不同：{STATUS_CN.get(meta_a['status'], meta_a['status'])} "
+            f"vs {STATUS_CN.get(meta_b['status'], meta_b['status'])}"
+        )
     if meta_a["duration_ms"] != meta_b["duration_ms"]:
         parts.append(
             f"总耗时不同：{meta_a['duration_ms']}ms vs {meta_b['duration_ms']}ms"
@@ -232,10 +252,9 @@ def _summarize_diff(
         )
     error_diffs = [d for d in differences if d["field"] == "error"]
     for diff in error_diffs[:3]:
-        span_id = diff["span_id_b"] or diff["span_id_a"]
-        name = diff.get("name_b") or diff.get("name_a")
+        name = display_span_name(diff.get("name_b") or diff.get("name_a"))
         error = diff["value_b"] or diff["value_a"]
-        parts.append(f"span {span_id}（{name}）出错：{_shorten(error, 80)}")
+        parts.append(f"span「{name or '未知步骤'}」出错：{_shorten(error, 80)}")
     other_count = len(differences) - len(error_diffs)
     if other_count:
         parts.append(f"另有 {other_count} 处差异（耗时/结构/注释）")
@@ -251,6 +270,15 @@ def _shorten(value: Any, limit: int = 120) -> Any:
     if len(value) <= limit:
         return value
     return value[:limit] + "…"
+
+
+def _span_label_cn(span_type: Any, name: Any) -> str:
+    """span 的中文可读标签（诊断层自持，避免反向依赖 web.theme）。"""
+    label = _SPAN_TYPE_CN.get(span_type or "", span_type or "未知")
+    display_name = display_span_name(name)
+    if display_name and display_name != str(span_type):
+        return f"{label} · {display_name}"
+    return label
 
 
 TOOL_SPECS: list[dict[str, Any]] = [

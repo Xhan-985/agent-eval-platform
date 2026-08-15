@@ -58,7 +58,7 @@ def main() -> None:
         model_default = MODEL_OPTIONS[model_choice]
     base_url = st.sidebar.text_input(
         "API Base URL",
-        value="https://api.openai.com/v1",
+        value=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         help="OpenAI 默认；DeepSeek 用 https://api.deepseek.com",
     )
     api_key = st.sidebar.text_input(
@@ -94,6 +94,8 @@ def main() -> None:
     # 详情页"用 AI 诊断"按钮跳转：widget 实例化前先写 nav，避免 SessionState 报错。
     if st.session_state.pop("diag_jump", False):
         st.session_state["nav"] = "AI 诊断"
+    if st.session_state.pop("diff_jump", False):
+        st.session_state["nav"] = "Trace 对比"
     nav = st.sidebar.radio(
         "导航",
         ["仪表盘", "Trace 列表", "AI 诊断", "Trace 对比"],

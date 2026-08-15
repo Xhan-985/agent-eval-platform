@@ -64,6 +64,13 @@ def test_diff_page_renders_with_two_traces(tmp_path, monkeypatch):
     frame = at.dataframe[0].value
     assert "差异字段" in frame.columns
     assert len(frame) >= 1
+    # span 列显示可读标签（类型 · 名称），不允许出现 span id
+    a_span = str(frame["A span"].iloc[0])
+    assert "ReAct Agent" in a_span
+    assert "s-ok1" not in a_span
+    # 状态指标用中文（成功/失败）
+    status_values = [m.value for m in at.metric[:2]]
+    assert set(status_values) == {"成功", "失败"}
 
 
 def test_diff_page_with_single_trace_shows_info(tmp_path, monkeypatch):

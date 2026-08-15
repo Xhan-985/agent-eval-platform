@@ -147,8 +147,13 @@ def test_compare_traces_detects_error_diff(tmp_path):
     assert result["trace_b"]["status"] == "error"
     error_diffs = [d for d in result["differences"] if d["field"] == "error"]
     assert error_diffs
-    assert "s-tool" in result["summary"]
+    assert "搜索" in result["summary"]
     assert "状态" in result["summary"]
+    assert "成功" in result["summary"]
+    assert "失败" in result["summary"]
+    # 每条差异都带类型/名称，供页面显示可读标签（不带 UUID）
+    assert error_diffs[0]["type_a"] == "tool_call"
+    assert error_diffs[0]["name_a"] == "search"
 
 
 def test_compare_traces_detects_duration_diff(tmp_path):
@@ -180,7 +185,9 @@ def test_compare_traces_detects_extra_span(tmp_path):
 
     result = compare_traces(db, "full", "partial")
 
-    assert any(d["field"] == "exists_only_in_a" for d in result["differences"])
+    extra = [d for d in result["differences"] if d["field"] == "exists_only_in_a"]
+    assert extra
+    assert extra[0]["value_a"] == "工具调用 · 搜索"
     assert result["span_count_a"] == 3
     assert result["span_count_b"] == 2
 

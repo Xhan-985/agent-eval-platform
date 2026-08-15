@@ -20,6 +20,15 @@ def render(traces: list[dict[str, Any]]) -> None:
     if not traces:
         st.info("暂无 trace。用 agenteval 接入 Agent 并运行后，trace 会自动入库。")
         return
+    tool_left, tool_right = st.columns(2)
+    with tool_left:
+        if st.button("🤖 AI 诊断", type="primary", key="list_diag", width="stretch"):
+            st.session_state["diag_jump"] = True
+            st.rerun()
+    with tool_right:
+        if st.button("⇄ Trace 对比", key="list_diff", width="stretch"):
+            st.session_state["diff_jump"] = True
+            st.rerun()
 
     filtered = _apply_filters(traces)
     if not filtered:

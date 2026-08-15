@@ -2,10 +2,12 @@
 
 from agenteval.storage.schema import (
     SCHEMA_SQL,
+    STATUS_CN,
     STATUS_ERROR,
     STATUS_LABELS,
     STATUS_RUNNING,
     STATUS_SUCCESS,
+    display_span_name,
 )
 
 
@@ -14,6 +16,15 @@ def test_status_constants_match_design():
     assert STATUS_ERROR == 1
     assert STATUS_RUNNING == 2
     assert STATUS_LABELS == {0: "success", 1: "error", 2: "running"}
+    assert STATUS_CN == {"success": "成功", "error": "失败", "running": "运行中"}
+
+
+def test_display_span_name_translates_known_names():
+    assert display_span_name("analyze") == "分析"
+    assert display_span_name("call_tools") == "调用工具"
+    assert display_span_name("calculator") == "计算器"
+    assert display_span_name("custom_step") == "custom_step"
+    assert display_span_name(None) == ""
 
 
 def test_schema_defines_traces_table():

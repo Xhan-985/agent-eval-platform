@@ -11,6 +11,7 @@ from typing import Any
 
 import streamlit as st
 
+from agenteval.storage.schema import display_span_name
 from agenteval.web.theme import ERROR_COLOR, SPAN_COLORS
 
 
@@ -61,7 +62,7 @@ def _walk(
         {
             "pos": len(rows),
             "span_id": span.get("span_id"),
-            "name": span.get("name") or span.get("type") or "unknown",
+    "name": display_span_name(span.get("name")) or span.get("type") or "unknown",
             "type": span.get("type", "unknown"),
             "start_s": round(start_s, 3),
             "end_s": round(start_s + dur_s, 3),

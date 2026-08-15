@@ -7,6 +7,7 @@ from typing import Any
 import streamlit as st
 
 import agenteval
+from agenteval.web.metrics import trace_select_label
 
 
 def render(traces: list[dict[str, Any]], llm_factory: Any, model_default: str) -> None:
@@ -21,14 +22,16 @@ def render(traces: list[dict[str, Any]], llm_factory: Any, model_default: str) -
     selected_id = st.selectbox(
         "选择 trace",
         ids,
-        format_func=lambda tid: _label(by_id[tid]),
+        format_func=lambda tid: trace_select_label(by_id[tid]),
         key="diag_trace",
     )
     other_ids = [""] + [i for i in ids if i != selected_id]
     trace_id2 = st.selectbox(
         "对比第二条 trace（可选）",
         other_ids,
-        format_func=lambda i: "（不对比）" if not i else _label(by_id[i]),
+        format_func=lambda i: (
+            "（不对比）" if not i else trace_select_label(by_id[i])
+        ),
         key="diag_trace2",
     )
     question = st.text_input(
@@ -51,7 +54,3 @@ def render(traces: list[dict[str, Any]], llm_factory: Any, model_default: str) -
             )
         st.markdown(report)
         st.caption("本次诊断本身已作为一条 trace 入库（AgentEval 诊断助手）。")
-
-
-def _label(t: dict[str, Any]) -> str:
-    return f"{t.get('agent_name') or '?'} · {t.get('id')}"

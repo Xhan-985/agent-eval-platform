@@ -69,6 +69,22 @@ def render(rows: list[dict[str, Any]]) -> None:
     """渲染仪表盘首页。"""
     st.subheader("仪表盘")
 
+    st.markdown("### 🛠 分析工具")
+    tool_left, tool_right = st.columns(2)
+    with tool_left:
+        st.markdown("**🤖 AI 诊断**")
+        st.caption("让 AI 分析任意一条 trace：哪一步出错、为什么、怎么改。")
+        if st.button("开始 AI 诊断 →", type="primary", key="dash_diag", width="stretch"):
+            st.session_state["diag_jump"] = True
+            st.rerun()
+    with tool_right:
+        st.markdown("**⇄ Trace 对比**")
+        st.caption("两次执行并排 diff，定位“以前能跑现在不能”。")
+        if st.button("开始对比 →", key="dash_diff", width="stretch"):
+            st.session_state["diff_jump"] = True
+            st.rerun()
+    st.divider()
+
     if not rows:
         st.info("暂无 trace。用 agenteval 接入 Agent 并运行后，这里会出现统计概览。")
         return

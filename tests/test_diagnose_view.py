@@ -109,3 +109,71 @@ def test_detail_has_diagnose_button_jumps_to_page(tmp_path, monkeypatch):
     at.run()
 
     assert at.subheader[0].value == "AI 诊断"
+
+
+def test_dashboard_has_prominent_diagnose_entry(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(agenteval, "_llm_factory", None)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+
+    diagnose_button = next(b for b in at.button if b.label == "开始 AI 诊断 →")
+    diagnose_button.click()
+    at.run()
+
+    assert at.subheader[0].value == "AI 诊断"
+
+
+def test_list_page_has_diagnose_entry(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(agenteval, "_llm_factory", None)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    at.radio[0].set_value("Trace 列表")
+    at.run()
+
+    diagnose_button = next(b for b in at.button if b.label == "🤖 AI 诊断")
+    diagnose_button.click()
+    at.run()
+
+    assert at.subheader[0].value == "AI 诊断"
+
+
+def test_dashboard_has_prominent_diff_entry(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(agenteval, "_llm_factory", None)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+
+    diff_button = next(b for b in at.button if b.label == "开始对比 →")
+    diff_button.click()
+    at.run()
+
+    assert at.subheader[0].value == "Trace 对比"
+
+
+def test_list_page_has_diff_entry(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(agenteval, "_llm_factory", None)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    at.radio[0].set_value("Trace 列表")
+    at.run()
+
+    diff_button = next(b for b in at.button if b.label == "⇄ Trace 对比")
+    diff_button.click()
+    at.run()
+
+    assert at.subheader[0].value == "Trace 对比"

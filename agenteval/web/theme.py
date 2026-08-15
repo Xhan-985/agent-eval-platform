@@ -28,10 +28,10 @@ ERROR_FILL = "#fee2e2"
 
 # 类型标签（中文，用于徽标/表头）
 TYPE_LABELS: dict[str, str] = {
-    "agent_run": "Agent",
+    "agent_run": "智能体运行",
     "node": "节点",
-    "llm_call": "LLM",
-    "tool_call": "工具",
+    "llm_call": "模型调用",
+    "tool_call": "工具调用",
 }
 
 # 类型图标（graphviz DOT 节点用，保留 emoji 以兼容 build_dot 既有测试）

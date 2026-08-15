@@ -8,6 +8,7 @@ from typing import Any
 
 import streamlit as st
 
+from agenteval.storage.schema import display_span_name
 from agenteval.web import timeline_view
 from agenteval.web.metrics import format_duration, format_duration_ms
 from agenteval.web.replay_view import render_replay
@@ -136,7 +137,7 @@ def _render_span_table(spans: list[dict[str, Any]]) -> None:
         rows.append(
             {
                 "类型": type_label(s.get("type", "")),
-                "名称": s.get("name") or s.get("type"),
+                "名称": display_span_name(s.get("name")) or s.get("type"),
                 "耗时": format_duration(_span_duration_seconds(s)),
                 "错误": "是" if s.get("error") else "",
                 "注释": s.get("annotation") or "",
@@ -213,7 +214,7 @@ def _emit_node(lines: list[str], span: dict[str, Any], parent_id: str | None) ->
 def _node_attrs(span: dict[str, Any]) -> str:
     span_type = span.get("type", "unknown")
     icon = "❌" if span.get("error") else ICONS.get(span_type, "❓")
-    name = _dot_escape(str(span.get("name") or span_type))
+    name = _dot_escape(display_span_name(span.get("name")) or span_type)
     annotation = _dot_escape(
         _truncate(str(span.get("annotation") or ""), ANNOTATION_MAX_CHARS)
     )
@@ -228,7 +229,7 @@ def _node_attrs(span: dict[str, Any]) -> str:
 def _span_label(span: dict[str, Any]) -> str:
     span_type = span.get("type", "unknown")
     icon = "❌" if span.get("error") else ICONS.get(span_type, "❓")
-    name = span.get("name") or span_type
+    name = display_span_name(span.get("name")) or span_type
     duration = format_duration(_span_duration_seconds(span))
     return f"{icon} {name} · {duration} · {span.get('span_id', '')}"
 
