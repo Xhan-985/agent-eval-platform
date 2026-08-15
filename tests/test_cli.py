@@ -1,12 +1,39 @@
 """CLI 入口（agenteval-web / python -m agenteval）的单元测试。"""
 
+import os
 import subprocess
 import sys
 
 import pytest
 
 from agenteval import __main__ as entry
-from agenteval.cli import web
+from agenteval.cli import load_dotenv, web
+
+
+def test_load_dotenv_fills_missing_vars(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("FOO=bar\nOPENAI_API_KEY=sk-test\n", encoding="utf-8")
+    monkeypatch.delenv("FOO", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    load_dotenv(str(env_file))
+
+    assert os.environ["FOO"] == "bar"
+    assert os.environ["OPENAI_API_KEY"] == "sk-test"
+
+
+def test_load_dotenv_does_not_override_existing(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("FOO=bar\n", encoding="utf-8")
+    monkeypatch.setenv("FOO", "existing")
+
+    load_dotenv(str(env_file))
+
+    assert os.environ["FOO"] == "existing"
+
+
+def test_load_dotenv_missing_file_is_noop(tmp_path):
+    load_dotenv(str(tmp_path / "nope.env"))  # 不应抛异常
 
 
 def test_cli_web_launches_streamlit_with_python_m(monkeypatch):

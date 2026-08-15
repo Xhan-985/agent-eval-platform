@@ -140,6 +140,10 @@ agenteval.init(
 
 DeepSeek 模型名形如 `deepseek-v4-flash` / `deepseek-v4-pro`。API key 建议放环境变量 `OPENAI_API_KEY` 或本地 `.env`（已被 gitignore），不要写进代码。
 
+`agenteval-web` 启动时会自动读取当前目录的 `.env`；也可以把
+`OPENAI_BASE_URL=https://api.deepseek.com` 写进 `.env`，Web 侧边栏会自动带出，
+避免每次手动改 Base URL。
+
 ### 启动 Web 界面
 
 安装时带上 `[web]` 依赖后，一条命令即可打开可视化页面：
