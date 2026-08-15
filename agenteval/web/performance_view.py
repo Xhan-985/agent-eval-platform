@@ -42,7 +42,10 @@ def render(trace: dict[str, Any]) -> None:
             "类型": type_label(row["type"]),
             "耗时": format_duration_ms(row["duration_ms"]),
             "耗时占比": f'{row["duration_pct"]:.1f}%',
-            "Token": row["tokens"] or "",
+            # 统一为字符串：列内混 int 与空串会让 st.dataframe 的 Arrow
+            # 序列化失败（"Expected bytes, got a 'int' object"），进而引发
+            # 前端组件更新异常（removeChild 报错的诱因之一）。
+            "Token": str(row["tokens"]) if row["tokens"] else "",
             "Token 占比": f'{row["tokens_pct"]:.1f}%' if row["tokens_pct"] else "",
             "错误": "⚠️" if row["error"] else "",
         }
