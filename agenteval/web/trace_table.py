@@ -54,3 +54,35 @@ def render_trace_table(rows: list[dict[str, Any]], key_prefix: str) -> None:
         if selected:
             st.session_state["selected_trace_id"] = rows[selected[0]]["id"]
             st.rerun()
+
+
+def render_trace_rows_with_buttons(rows: list[dict[str, Any]], key_prefix: str) -> None:
+    """每行一个“查看”按钮的 trace 列表（不依赖 st.dataframe 的 on_select）。
+
+    供仪表盘“最近 Trace”使用：st.dataframe 的 on_select="rerun" 在图表+表格
+    混排的首页上会触发 Streamlit 前端 removeChild 清理竞态，改用纯按钮行
+    后不再注册行选择交互，点“查看”直接跳详情。每行带对话内容预览，方便
+    确认选的是哪条 trace。
+    """
+    display = build_rows(rows)
+    head = st.columns([1.1, 0.9, 1.1, 0.8, 0.8, 2.3, 0.6])
+    for col, label in zip(
+        head, ["时间", "状态", "Agent", "Token", "耗时", "对话内容", ""]
+    ):
+        col.caption(label)
+    for row in display:
+        cols = st.columns([1.1, 0.9, 1.1, 0.8, 0.8, 2.3, 0.6])
+        badge_text, _ = status_badge(row["status"])
+        cols[0].write(str(row["created_at"])[:19])
+        cols[1].write(f"{status_emoji(row['status'])} {badge_text}")
+        cols[2].write(row["agent_name"] or "—")
+        cols[3].write(f"{row['tokens']:,}")
+        cols[4].write(row["duration"])
+        cols[5].write(row["query"] or "—")
+        if cols[6].button(
+            "查看",
+            key=f"{key_prefix}_view_{row['id']}",
+            width="stretch",
+        ):
+            st.session_state["selected_trace_id"] = row["id"]
+            st.rerun()

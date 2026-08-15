@@ -173,6 +173,8 @@ def _render_status_donut(dist: dict[str, int]) -> None:
 
 
 def _render_recent_table(rows: list[dict[str, Any]]) -> None:
-    from agenteval.web.trace_table import render_trace_table
+    from agenteval.web.trace_table import render_trace_rows_with_buttons
 
-    render_trace_table(rows, key_prefix="dash")
+    # 仪表盘用纯按钮行而不是 st.dataframe 行选择：行选择 + rerun 在图表混排下
+    # 会触发 Streamlit 前端 removeChild 清理竞态；每行“查看”按钮无竞态且入口直观。
+    render_trace_rows_with_buttons(rows, key_prefix="dash")

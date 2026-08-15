@@ -61,6 +61,36 @@ def test_dashboard_renders_on_landing(tmp_path, monkeypatch):
     assert len(at.metric) >= 5
 
 
+def test_dashboard_recent_rows_have_view_buttons(tmp_path, monkeypatch):
+    """主页“最近 Trace”每行有“查看”按钮（无 dataframe 行选择，避免竞态）。"""
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    assert not at.exception
+    labels = [b.label for b in at.button]
+    assert labels.count("查看") >= 2  # 每条 trace 一个入口
+    assert "查看选中 Trace 详情" not in labels
+    assert any(c.value == "对话内容" for c in at.caption)  # 每行带对话预览
+
+
+def test_dashboard_view_button_opens_detail(tmp_path, monkeypatch):
+    """主页点“查看”能直接进入该 trace 的详情页。"""
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    assert not at.exception
+    view_button = next(b for b in at.button if b.label == "查看")
+    view_button.click()
+    at.run()
+    assert not at.exception
+    assert at.subheader[0].value.startswith("Trace 详情")
+    assert len(at.get("graphviz_chart")) == 1
+
+
 def test_list_page_renders_with_data(tmp_path, monkeypatch):
     db = str(tmp_path / "web.db")
     _seed(db)
