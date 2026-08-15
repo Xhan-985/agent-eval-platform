@@ -219,6 +219,8 @@ agenteval-web          # 或 python -m agenteval web
 - 页面默认读取**当前目录**的 `agenteval.db`（与运行 Agent 时一致）；如果 Agent 在其他目录运行，用环境变量 `AGENTEVAL_DB=/path/to/agenteval.db` 指定，或在页面侧边栏手动填写数据库路径
 - replay 的模型配置在页面侧边栏（模型名 / API Base URL / API Key），也可以用代码里的 `init(llm_factory=...)`
 - 界面为中文、单机本地工具（Streamlit），不会上传任何数据
+- 建议使用**最新版 Chrome / Edge / 夸克**浏览器访问页面；个别旧版或第三方浏览器内核与
+  Streamlit 前端存在兼容问题（可能报 `removeChild` 前端错误），升级浏览器或换浏览器即可
 
 ## 示例
 
