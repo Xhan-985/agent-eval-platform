@@ -70,6 +70,7 @@ def test_build_dot_contains_all_nodes_and_edges():
     assert '"root"' in dot
     assert '"llm1"' in dot
     assert '"tool1"' in dot
+    assert "->" in dot
     assert '"root" -> "llm1"' in dot
     assert '"root" -> "tool1"' in dot
 

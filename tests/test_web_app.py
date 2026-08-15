@@ -100,9 +100,11 @@ def test_list_page_renders_with_data(tmp_path, monkeypatch):
     assert not at.exception
     _goto_list(at)
     assert at.subheader[0].value == "Trace 列表"
-    assert len(at.dataframe) == 1
-    view_button = next(b for b in at.button if b.label == "查看选中 Trace 详情")
-    assert view_button.disabled
+    # 列表页不渲染 st.dataframe（避免前端 removeChild 竞态），每行一个“查看”按钮
+    assert len(at.dataframe) == 0
+    view_labels = [b.label for b in at.button]
+    assert view_labels.count("查看") == 2
+    assert "查看选中 Trace 详情" not in view_labels
 
 
 def test_status_filter_shows_only_failed(tmp_path, monkeypatch):
@@ -113,9 +115,27 @@ def test_status_filter_shows_only_failed(tmp_path, monkeypatch):
     at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
     _goto_list(at)
     at.selectbox[0].select("失败").run()
-    frame = at.dataframe[0].value
-    statuses = set(frame["状态"].tolist())
-    assert statuses == {"❌ 失败"}
+    # 只有 1 条失败 trace，因此只剩 1 个“查看”按钮
+    view_count = sum(1 for b in at.button if b.label == "查看")
+    assert view_count == 1
+
+
+def test_list_view_button_opens_detail(tmp_path, monkeypatch):
+    """列表页每行“查看”按钮能直接进入详情页（用户真实操作路径）。"""
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    _goto_list(at)
+    view_button = next(b for b in at.button if b.label == "查看")
+    view_button.click()
+    at.run()
+
+    assert not at.exception
+    assert at.subheader[0].value.startswith("Trace 详情")
+    assert len(at.get("graphviz_chart")) == 1
+    assert len(at.expander) == 2
 
 
 def test_selecting_trace_opens_detail(tmp_path, monkeypatch):
