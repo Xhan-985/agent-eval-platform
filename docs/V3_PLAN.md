@@ -9,7 +9,7 @@
 |------|------|------|------|
 | V3-P0（0.3.0） | 性能分析 + token 成本归因 | 1-2 周 | 本期 |
 | V3-P1（0.4.0） | 多框架支持（仅 OpenAI Agents SDK） | 2-4 周 | 规划中 |
-| V3-P2（0.5.0） | 导出 OTLP | 0.5 周 | 规划中 |
+| V3-P2（0.5.0） | 导出 OTLP | 0.5 周 | 本期（已完成） |
 
 调整理由：
 1. 多框架（OpenAI Agents SDK）是架构级改动（async 采集），且收益未被验证，
@@ -97,3 +97,33 @@
 ---
 
 *本文档随 V3 进度持续更新。*
+
+## 5. V3-P2：导出 OTLP — 已完成（0.5.0）
+
+### 5.1 已定决策
+
+- **零依赖实现**：不引入 opentelemetry SDK，直接生成 OTLP/HTTP JSON 协议的
+  `ExportTraceServiceRequest`（`agenteval/export/otlp.py`），纯函数可测。
+- 导出方式两种：`export_otlp_json()` 写 JSON 文件（可导入 Jaeger 等）；
+  `send_otlp_http()` 用 urllib POST 到任意 OTLP/HTTP 端点（如
+  `http://localhost:4318/v1/traces`）。
+- id 派生：agenteval 的字符串 id（UUID / span 名）定长哈希为
+  32/16 位 hex；已是合法 hex 则原样保留。
+- 时间戳：ISO 8601 → unix 纳秒；proto3 JSON 约定 int64 用字符串。
+
+### 5.2 字段映射
+
+- resource attributes：`service.name=agenteval`、`service.version`、
+  `agent.framework`、`agent.name`。
+- 通用 span attributes：`span.type` / `span.name` / `annotation` / `error`。
+- llm_call 附加 `gen_ai.*`：`gen_ai.system`、`gen_ai.request.model`、
+  `gen_ai.usage.input_tokens`（兼容 prompt_tokens）/ `output_tokens`
+  （兼容 completion_tokens）/ `total_tokens`。
+- error span：`status.code=2` + exception 事件（exception.type/message）。
+
+### 5.3 验收
+
+- [x] `to_otlp_payload` 纯函数转换正确（结构 / id / parent / 时间戳 / 属性 / 错误状态）
+- [x] `export_otlp_json` 写文件，trace 不存在返回 0
+- [x] `send_otlp_http` 用 mock urlopen 验证 POST + Content-Type + body
+- [x] 全部测试通过（213 个），ruff 全绿；版本 bump 0.5.0

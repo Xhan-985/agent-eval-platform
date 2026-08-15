@@ -21,7 +21,7 @@ from .collector.callback import AgentEvalCallbackHandler
 from .collector.serializer import build_trace, serialize_to_json
 from .storage.db import init_db, insert_trace
 
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 __all__ = ["init", "wrap", "trace", "last_trace", "diagnose", "__version__"]
 
 logger = logging.getLogger("agenteval")

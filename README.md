@@ -154,6 +154,24 @@ export_to_jsonl("agenteval.db", "你的-trace-id", "export.jsonl")
 
 生成 Langfuse 字段命名（traces + observations）的 JSONL 文件，方便迁移到 Langfuse 生态。
 
+### 导出 OTLP（V3）
+
+把 trace 导出为标准 OpenTelemetry OTLP/HTTP JSON 格式，可接入 Jaeger、Grafana
+Tempo 等可观测平台。零依赖实现，无需安装 opentelemetry SDK：
+
+```python
+from agenteval.export.otlp import export_otlp_json, send_otlp_http
+
+# 1) 导出为 JSON 文件（可直接用 Jaeger 等工具导入）
+export_otlp_json("agenteval.db", "你的-trace-id", "trace.otlp.json")
+
+# 2) 直接推送到 OTLP/HTTP 端点（本地 Jaeger Collector 默认 4318）
+send_otlp_http("agenteval.db", "你的-trace-id", "http://localhost:4318/v1/traces")
+```
+
+llm_call span 附带 `gen_ai.*` 语义属性（模型名 / input / output / total tokens），
+error span 标记 `status.code=ERROR` 并生成 exception 事件。
+
 ### 使用 DeepSeek / OpenAI 兼容 API
 
 OpenAI 兼容接口只需配置 `base_url`：
@@ -217,8 +235,8 @@ agenteval-web          # 或 python -m agenteval web
 | v0.1.0 | 采集 + 教学注释 + LLM 节点 replay（MVP） | ✅ MVP 完成 |
 | v0.2.0 | 诊断 Agent（AI 助教）+ trace diff + Langfuse 导出 | ✅ 完成 |
 | v0.3.0 | 性能分析 + token 成本归因 | ✅ 完成 |
-| v0.4.0 | 多框架支持（OpenAI Agents SDK） | 开发中 |
-| v0.5.0 | 导出 OTLP | 规划中 |
+| v0.4.0 | 多框架支持（OpenAI Agents SDK） | ✅ 完成 |
+| v0.5.0 | 导出 OTLP | ✅ 完成 |
 
 ## 适合谁
 
