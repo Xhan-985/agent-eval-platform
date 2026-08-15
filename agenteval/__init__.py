@@ -74,7 +74,6 @@ def init(
 
         _agents_processor = AgentEvalTracingProcessor(
             lambda trace: _store_trace(trace),
-            verbose=verbose,
         )
         set_trace_processors([_agents_processor])
     else:

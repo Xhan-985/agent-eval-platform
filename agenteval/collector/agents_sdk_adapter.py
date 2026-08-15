@@ -62,11 +62,9 @@ class AgentEvalTracingProcessor(TracingProcessor):
         self,
         persist: Callable[[dict[str, Any]], None],
         *,
-        verbose: bool = False,
         agent_name: str | None = None,
     ) -> None:
         self._persist = persist
-        self._verbose = verbose
         self._agent_name = agent_name
         # trace_id -> collector：SDK 允许多个 trace 交错执行，按 trace 隔离。
         self._collectors: dict[str, SpanCollector] = {}
@@ -156,10 +154,6 @@ class AgentEvalTracingProcessor(TracingProcessor):
             trace_dict = collector.get_trace()
             _enrich_root_io(trace_dict)
             self._persist(trace_dict)
-            if self._verbose:
-                from .serializer import serialize_to_json
-
-                print(serialize_to_json(trace_dict))
 
         safe_call(_run, logger)
 
