@@ -31,7 +31,13 @@ def _span(
     }
 
 
-def _llm(span_id: str, tokens: int, started: str, ended: str, model: str = "deepseek-v4-flash") -> dict:
+def _llm(
+    span_id: str,
+    tokens: int,
+    started: str,
+    ended: str,
+    model: str = "deepseek-v4-flash",
+) -> dict:
     return _span(
         span_id,
         "llm_call",
@@ -40,7 +46,11 @@ def _llm(span_id: str, tokens: int, started: str, ended: str, model: str = "deep
         ended=ended,
         metadata={
             "model_name": model,
-            "token_usage": {"prompt_tokens": 1000, "completion_tokens": 500, "total_tokens": tokens},
+            "token_usage": {
+                "prompt_tokens": 1000,
+                "completion_tokens": 500,
+                "total_tokens": tokens,
+            },
         },
     )
 
@@ -51,7 +61,12 @@ def test_span_duration_ms():
 
 
 def test_span_total_tokens_only_counts_llm_call():
-    assert span_total_tokens(_llm("l", 100, "2026-08-15T00:00:00+00:00", "2026-08-15T00:00:01+00:00")) == 100
+    assert (
+        span_total_tokens(
+            _llm("l", 100, "2026-08-15T00:00:00+00:00", "2026-08-15T00:00:01+00:00")
+        )
+        == 100
+    )
     assert span_total_tokens(_span("t", "tool_call", "search")) == 0
 
 

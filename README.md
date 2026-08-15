@@ -164,6 +164,7 @@ agenteval-web          # 或 python -m agenteval web
 - **replay 面板**：LLM span 可改输入重跑（结构化原/新 output 对比 + replay 历史），tool span 显示录播响应（不真实执行）
 - **AI 诊断页（V2）**：选一条 trace（可选第二条做对比、可选问题），一键生成四段式诊断报告（概述 / 可疑步骤 / 原因分析 / 修改建议），可疑步骤带 span_id；诊断过程本身会作为一条 trace 入库（agent_name = "AgentEval 诊断助手"）
 - **Trace 对比页（V2）**：两个 trace 并排选择，展示状态 / 耗时 / span 级差异表格
+- **性能分析（V3）**：详情页"性能"tab，span 耗时/token 归因排行（占比 + 慢节点 + 可选成本估算），仪表盘显示最慢单次执行
 
 注意事项：
 
@@ -184,8 +185,9 @@ agenteval-web          # 或 python -m agenteval web
 |------|------|------|
 | v0.1.0 | 采集 + 教学注释 + LLM 节点 replay（MVP） | ✅ MVP 完成 |
 | v0.2.0 | 诊断 Agent（AI 助教）+ trace diff + Langfuse 导出 | ✅ 完成 |
-| v0.3.0 | 多框架支持（OpenAI Agents SDK） | 规划中 |
-| v0.4.0 | 性能分析 | 规划中 |
+| v0.3.0 | 性能分析 + token 成本归因 | ✅ 完成 |
+| v0.4.0 | 多框架支持（OpenAI Agents SDK） | 规划中 |
+| v0.5.0 | 导出 OTLP | 规划中 |
 
 ## 适合谁
 
