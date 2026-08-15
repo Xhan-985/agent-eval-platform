@@ -15,13 +15,13 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+# 预导入诊断子模块：防止后续 `from agenteval.diagnose...` 覆盖同名公开函数属性。
+from . import diagnose as _diagnose_module  # noqa: F401
 from .collector.callback import AgentEvalCallbackHandler
 from .collector.serializer import build_trace, serialize_to_json
 from .storage.db import init_db, insert_trace
-# 预导入诊断子模块：防止后续 `from agenteval.diagnose...` 覆盖同名公开函数属性。
-from . import diagnose as _diagnose_module  # noqa: F401
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = ["init", "wrap", "trace", "last_trace", "diagnose", "__version__"]
 
 logger = logging.getLogger("agenteval")

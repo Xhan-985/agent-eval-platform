@@ -258,7 +258,9 @@ TOOL_SPECS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "get_trace",
-            "description": "读取一条 trace 的摘要（span 清单，不含完整 input/output），用于看全局。",
+            "description": (
+                "读取一条 trace 的摘要（span 清单，不含完整 input/output），用于看全局。"
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {

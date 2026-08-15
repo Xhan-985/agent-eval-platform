@@ -1,7 +1,5 @@
 """诊断工具（get_trace 摘要 / get_span / compare_traces）的单元测试。"""
 
-import json
-
 from agenteval.diagnose.tools import compare_traces, get_span, get_trace
 from agenteval.storage.db import init_db, insert_trace
 

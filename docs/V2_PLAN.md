@@ -84,38 +84,38 @@ collector 完全不感知 diagnose
 
 ### Week 1：diagnose 包（纯逻辑 + 测试）
 
-- [ ] `diagnose/tools.py`：get_trace 摘要 / get_span / compare_traces（含 `_flatten_spans`、`_find_span`、`_diff_spans`、`TOOL_SPECS`、`TOOL_DISPATCH`）
-- [ ] `diagnose/prompts.py`：`SYSTEM_PROMPT`（教学化 + 强制四段式 + 必须引用 span_id）+ `build_user_prompt()`
-- [ ] `diagnose/report.py`：`SECTIONS` / `parse_report()` / `render_report()` / `has_complete_report()`
-- [ ] `diagnose/graph.py`：`build_diagnose_graph(llm, max_steps)` + `diagnose(db_path, trace_id, question, trace_id2, llm, llm_factory, model_name, max_steps, run)`
-- [ ] `diagnose/__init__.py` 导出
-- [ ] `tests/test_diagnose_tools.py` / `test_diagnose_report.py` / `test_diagnose_graph.py`
+- [x] `diagnose/tools.py`：get_trace 摘要 / get_span / compare_traces（含 `_flatten_spans`、`_find_span`、`_diff_spans`、`TOOL_SPECS`、`TOOL_DISPATCH`）
+- [x] `diagnose/prompts.py`：`SYSTEM_PROMPT`（教学化 + 强制四段式 + 必须引用 span_id）+ `build_user_prompt()`
+- [x] `diagnose/report.py`：`SECTIONS` / `parse_report()` / `render_report()` / `has_complete_report()`
+- [x] `diagnose/graph.py`：`build_diagnose_graph(llm, max_steps)` + `diagnose(db_path, trace_id, question, trace_id2, llm, llm_factory, model_name, max_steps, run)`
+- [x] `diagnose/__init__.py` 导出
+- [x] `tests/test_diagnose_tools.py` / `test_diagnose_report.py` / `test_diagnose_graph.py`
 - 验收：三个测试文件全过；不依赖真实 LLM API；100+ span 摘要不爆上下文。
 
 ### Week 2：对外 API + Web 诊断页 + dogfooding
 
-- [ ] `__init__.py` 新增 `agenteval.diagnose()`（复用 `_llm_factory`；handler 激活时走 `wrap` 采集）
-- [ ] `web/diagnose_view.py`：选 trace / 可选对比 / 可选问题 / 开始诊断 / Markdown 报告展示
-- [ ] `web/app.py`：导航增加"AI 诊断"
-- [ ] `tests/test_diagnose_view.py` + `tests/test_api.py` 补充
+- [x] `__init__.py` 新增 `agenteval.diagnose()`（复用 `_llm_factory`；handler 激活时走 `wrap` 采集）
+- [x] `web/diagnose_view.py`：选 trace / 可选对比 / 可选问题 / 开始诊断 / Markdown 报告展示
+- [x] `web/app.py`：导航增加"AI 诊断"
+- [x] `tests/test_diagnose_view.py` + `tests/test_diagnose_api.py`
 - 验收：Web 页面可生成报告；未配置 API Key 时给出明确提示；诊断本身入库（dogfooding）。
 
 ### Week 3：trace diff 页 + Langfuse 导出 + 打磨
 
-- [ ] `web/diff_view.py`：两个 trace 并排对比（复用 compare_traces）+ 差异表格
-- [ ] `export/langfuse.py`：`to_langfuse_events(trace)` + `export_to_jsonl()`
-- [ ] README 补充 V2 使用说明（诊断页 + API + 已知限制）
-- [ ] 版本号升到 0.2.0；`__version__` 与 pyproject 同步
+- [x] `web/diff_view.py`：两个 trace 并排对比（复用 compare_traces）+ 差异表格
+- [x] `export/langfuse.py`：`to_langfuse_payload(trace)` + `export_to_jsonl()`
+- [x] README 补充 V2 使用说明（诊断页 + API + 已知限制）
+- [x] 版本号升到 0.2.0；`__version__` 与 pyproject 同步
 - 验收：diff 页可用；导出函数有测试；全量测试通过。
 
 ## 5. 验收标准（V2-P0）
 
-- [ ] 选中 trace 可生成四段式 Markdown 诊断报告，可疑步骤带 span_id
-- [ ] 大 trace（100+ span）不爆上下文（get_trace 摘要机制生效）
-- [ ] 诊断过程本身在 trace 列表中可见（agent_name = "AgentEval 诊断助手"）
-- [ ] 未配置 API Key / llm_factory 时有明确错误提示，其余功能不受影响
-- [ ] LLM 调用失败、工具异常、达到最大步数均不崩溃
-- [ ] 旧测试全部通过（Week 1-5 + UX 迭代），新测试全 mock
+- [x] 选中 trace 可生成四段式 Markdown 诊断报告，可疑步骤带 span_id
+- [x] 大 trace（100+ span）不爆上下文（get_trace 摘要机制生效）
+- [x] 诊断过程本身在 trace 列表中可见（agent_name = "AgentEval 诊断助手"）
+- [x] 未配置 API Key / llm_factory 时有明确错误提示，其余功能不受影响
+- [x] LLM 调用失败、工具异常、达到最大步数均不崩溃
+- [x] 旧测试全部通过（Week 1-5 + UX 迭代），新测试全 mock
 
 ## 6. 已知限制（写进 README）
 

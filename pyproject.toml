@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agenteval-debugger"
-version = "0.1.2"
+version = "0.2.0"
 description = "面向学习者的 AI Agent 执行调试器"
 readme = "README.md"
 license = "MIT"
@@ -26,6 +26,7 @@ classifiers = [
 ]
 dependencies = [
     "langchain-core>=1.0",
+    "langgraph>=1.0",
 ]
 
 [project.optional-dependencies]

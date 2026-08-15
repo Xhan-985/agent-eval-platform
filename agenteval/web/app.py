@@ -10,6 +10,7 @@ import agenteval
 from agenteval.storage.db import get_trace, init_db, list_traces
 from agenteval.web.dashboard_view import render as render_dashboard
 from agenteval.web.diagnose_view import render as render_diagnose
+from agenteval.web.diff_view import render as render_diff
 from agenteval.web.list_view import render as render_list
 from agenteval.web.trace_view import render_trace
 
@@ -94,7 +95,10 @@ def main() -> None:
     if st.session_state.pop("diag_jump", False):
         st.session_state["nav"] = "AI 诊断"
     nav = st.sidebar.radio(
-        "导航", ["仪表盘", "Trace 列表", "AI 诊断"], key="nav", horizontal=True
+        "导航",
+        ["仪表盘", "Trace 列表", "AI 诊断", "Trace 对比"],
+        key="nav",
+        horizontal=True,
     )
 
     selected_id = st.session_state.get("selected_trace_id")
@@ -123,6 +127,8 @@ def main() -> None:
         render_list(list_traces(db_path))
     elif nav == "AI 诊断":
         render_diagnose(list_traces(db_path), llm_factory, model_default)
+    elif nav == "Trace 对比":
+        render_diff(list_traces(db_path), db_path)
     else:
         render_dashboard(list_traces(db_path))
 

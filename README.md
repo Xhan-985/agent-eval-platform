@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status](https://img.shields.io/badge/status-MVP-orange.svg)](https://github.com/Xhan-985/agent-eval-platform)
+[![Status](https://img.shields.io/badge/status-v2-orange.svg)](https://github.com/Xhan-985/agent-eval-platform)
 
 ## 为什么需要 AgentEval
 
@@ -18,6 +18,8 @@ AgentEval 面向**学习者和初学者**，让你看懂 Agent 每一步在干�
 
 - **教学化注释** — 每个 span 自动解释"这一步在干什么、为什么"，现有工具不做这个
 - **安全回放** — LLM 节点可修改输入重跑，tool 节点用录播响应避免副作用（不会重复发邮件/删数据）
+- **AI 诊断（V2）** — 选中一条 trace，由无状态诊断 Agent（LangGraph 实现，吃自己的狗粮）生成自然语言诊断报告：哪一步可能出错、为什么、怎么改
+- **Trace 对比（V2）** — 两次执行并排 diff，定位"以前能跑现在不能"
 - **3 行代码接入** — 比现有方案更简单，降低学习者门槛
 - **零配置** — `pip install` 即用，不需要 Docker、不需要装数据库
 
@@ -88,6 +90,40 @@ agenteval.init(
 
 `llm_factory` 接收模型名并返回一个 ChatModel 实例。不配置时 replay 会给出明确提示，其他功能不受影响。
 
+### AI 诊断（V2）
+
+对任意一条（或两条）trace 运行诊断 Agent，输出中文 Markdown 报告：
+
+```python
+import agenteval
+from langchain_openai import ChatOpenAI
+
+agenteval.init(
+    llm_factory=lambda model_name: ChatOpenAI(
+        model=model_name,
+        base_url="https://api.deepseek.com",
+        api_key="sk-...",
+    ),
+)
+
+report = agenteval.diagnose("你的-trace-id", question="为什么这一步报错？")
+print(report)
+```
+
+也可以带第二个 trace_id 让诊断 Agent 做对比诊断（内部使用 compare_traces 工具）。
+Web 侧边栏"AI 诊断"页提供同样的能力，无需写代码。**要求模型支持 tool calling**
+（DeepSeek / OpenAI 兼容模型均可）；未配置 `llm_factory` 时页面和 API 都会给出明确提示。
+
+### 导出 Langfuse 格式（V2）
+
+```python
+from agenteval.export.langfuse import export_to_jsonl
+
+export_to_jsonl("agenteval.db", "你的-trace-id", "export.jsonl")
+```
+
+生成 Langfuse 字段命名（traces + observations）的 JSONL 文件，方便迁移到 Langfuse 生态。
+
 ### 使用 DeepSeek / OpenAI 兼容 API
 
 OpenAI 兼容接口只需配置 `base_url`：
@@ -122,6 +158,8 @@ agenteval-web          # 或 python -m agenteval web
   - **Span 列表**：平铺表，按类型/错误筛选
 - **span 详情**：下拉选 span 查看全文注释、耗时、token 用量、可折叠 input / output
 - **replay 面板**：LLM span 可改输入重跑（结构化原/新 output 对比 + replay 历史），tool span 显示录播响应（不真实执行）
+- **AI 诊断页（V2）**：选一条 trace（可选第二条做对比、可选问题），一键生成四段式诊断报告（概述 / 可疑步骤 / 原因分析 / 修改建议），可疑步骤带 span_id；诊断过程本身会作为一条 trace 入库（agent_name = "AgentEval 诊断助手"）
+- **Trace 对比页（V2）**：两个 trace 并排选择，展示状态 / 耗时 / span 级差异表格
 
 注意事项：
 
@@ -141,9 +179,9 @@ agenteval-web          # 或 python -m agenteval web
 | 版本 | 功能 | 状态 |
 |------|------|------|
 | v0.1.0 | 采集 + 教学注释 + LLM 节点 replay（MVP） | ✅ MVP 完成 |
-| v0.2.0 | 诊断 Agent（AI 助教） | 规划中 |
+| v0.2.0 | 诊断 Agent（AI 助教）+ trace diff + Langfuse 导出 | ✅ 完成 |
 | v0.3.0 | 多框架支持（OpenAI Agents SDK） | 规划中 |
-| v0.4.0 | trace diff + 性能分析 | 规划中 |
+| v0.4.0 | 性能分析 | 规划中 |
 
 ## 适合谁
 
@@ -173,6 +211,7 @@ agenteval-web          # 或 python -m agenteval web
 - 只支持 LangGraph；LangChain 原生 chain、OpenAI Agents SDK 等暂不支持（见路线图 v0.3.0）
 - 只支持单次串行调用，多次 invoke 请串行执行
 - RAG 检索（retriever）调用暂以 node span 呈现，不单独标注
+- 诊断 Agent 只分析本地 SQLite 中的 trace；报告质量依赖所配置的模型，模型需支持 tool calling
 
 ## 贡献
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import Any
 
 SECTIONS = ["概述", "可疑步骤", "原因分析", "修改建议"]
 
