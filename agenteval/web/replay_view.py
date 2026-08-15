@@ -62,12 +62,19 @@ def _render_result(span: dict[str, Any], result: dict[str, Any]) -> None:
 
 
 def _show_output(value: Any) -> None:
-    """结构化展示 LLM 输出（dict/list 用 st.json，其余用 st.code）。"""
+    """结构化展示 LLM 输出（dict/list 用格式化 JSON 的 st.code，其余用 st.code）。
+
+    不用 st.json：复杂组件在 rerun 时易触发 Streamlit 前端 removeChild 竞态。
+    """
     if value is None:
         st.caption("（空）")
         return
     if isinstance(value, (dict, list)):
-        st.json(value)
+        try:
+            text = json.dumps(value, ensure_ascii=False, indent=2, default=str)
+        except TypeError:
+            text = str(value)
+        st.code(text, language="json")
         return
     if hasattr(value, "content"):
         st.code(str(value.content))

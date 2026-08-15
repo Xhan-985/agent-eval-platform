@@ -180,11 +180,24 @@ def _render_span_detail(spans: list[dict[str, Any]], llm_factory: Any) -> None:
         detail_cols[2].caption(f"⚠️ {span['error']}")
 
     with st.expander("input", expanded=True):
-        st.json(span.get("input"))
+        _show_json(span.get("input"))
     with st.expander("output", expanded=True):
-        st.json(span.get("output"))
+        _show_json(span.get("output"))
 
     render_replay(span, llm_factory)
+
+
+def _show_json(value: Any) -> None:
+    """用 st.code 渲染 JSON（st.json 是复杂组件，rerun 切换 span 时易触发
+    Streamlit 前端 removeChild 清理竞态，纯文本渲染更稳）。"""
+    if value is None:
+        st.caption("（空）")
+        return
+    try:
+        text = json.dumps(value, ensure_ascii=False, indent=2, default=str)
+    except TypeError:
+        text = str(value)
+    st.code(text, language="json")
 
 
 def _extract_model(trace: dict[str, Any]) -> str | None:
