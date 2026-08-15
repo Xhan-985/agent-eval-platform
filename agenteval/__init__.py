@@ -18,9 +18,11 @@ from typing import Any
 from .collector.callback import AgentEvalCallbackHandler
 from .collector.serializer import build_trace, serialize_to_json
 from .storage.db import init_db, insert_trace
+# 预导入诊断子模块：防止后续 `from agenteval.diagnose...` 覆盖同名公开函数属性。
+from . import diagnose as _diagnose_module  # noqa: F401
 
 __version__ = "0.1.0"
-__all__ = ["init", "wrap", "trace", "last_trace", "__version__"]
+__all__ = ["init", "wrap", "trace", "last_trace", "diagnose", "__version__"]
 
 logger = logging.getLogger("agenteval")
 
@@ -59,6 +61,52 @@ def init(
 def last_trace() -> dict[str, Any] | None:
     """返回最近一次执行采集到的 trace（未采集过返回 None）。"""
     return _last_trace
+
+
+def diagnose(
+    trace_id: str,
+    question: str | None = None,
+    trace_id2: str | None = None,
+    llm: Any | None = None,
+    llm_factory: Callable[[str], Any] | None = None,
+    model_name: str = "diagnose",
+    max_steps: int = 8,
+) -> str:
+    """对一条（或两条）trace 运行无状态诊断 Agent，返回 Markdown 报告。
+
+    复用 init() 配置的 llm_factory；handler 已初始化时，诊断过程本身会作为
+    trace 入库（agent_name = "AgentEval 诊断助手"，吃自己的狗粮）。
+    失败时返回明确中文错误文本，不抛异常。
+    """
+    from .diagnose.graph import diagnose as _run_diagnose
+
+    factory = llm_factory or _llm_factory
+    if _handler is not None:
+
+        def run(graph: Any, state: dict[str, Any]) -> dict[str, Any]:
+            return wrap(graph, name="AgentEval 诊断助手").invoke(state)
+
+        return _run_diagnose(
+            _db_path,
+            trace_id,
+            question=question,
+            trace_id2=trace_id2,
+            llm=llm,
+            llm_factory=factory,
+            model_name=model_name,
+            max_steps=max_steps,
+            run=run,
+        )
+    return _run_diagnose(
+        _db_path,
+        trace_id,
+        question=question,
+        trace_id2=trace_id2,
+        llm=llm,
+        llm_factory=factory,
+        model_name=model_name,
+        max_steps=max_steps,
+    )
 
 
 def wrap(graph: Any, name: str | None = None) -> Any:

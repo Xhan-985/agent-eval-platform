@@ -9,6 +9,7 @@ import streamlit as st
 import agenteval
 from agenteval.storage.db import get_trace, init_db, list_traces
 from agenteval.web.dashboard_view import render as render_dashboard
+from agenteval.web.diagnose_view import render as render_diagnose
 from agenteval.web.list_view import render as render_list
 from agenteval.web.trace_view import render_trace
 
@@ -89,13 +90,23 @@ def main() -> None:
 
     # 导航：仪表盘 / Trace 列表；选中 trace 时进入详情页。
     st.session_state.setdefault("selected_trace_id", None)
-    nav = st.sidebar.radio("导航", ["仪表盘", "Trace 列表"], key="nav", horizontal=True)
+    # 详情页"用 AI 诊断"按钮跳转：widget 实例化前先写 nav，避免 SessionState 报错。
+    if st.session_state.pop("diag_jump", False):
+        st.session_state["nav"] = "AI 诊断"
+    nav = st.sidebar.radio(
+        "导航", ["仪表盘", "Trace 列表", "AI 诊断"], key="nav", horizontal=True
+    )
 
     selected_id = st.session_state.get("selected_trace_id")
     if selected_id is not None:
         if st.button("← 返回列表", type="primary"):
             st.session_state["selected_trace_id"] = None
             st.session_state["clear_table_selection"] = True
+            st.rerun()
+        if st.button("用 AI 诊断这条 trace", key="diag_from_detail"):
+            st.session_state["diag_trace"] = selected_id
+            st.session_state["diag_jump"] = True
+            st.session_state["selected_trace_id"] = None
             st.rerun()
         trace = get_trace(db_path, selected_id)
         if trace is not None:
@@ -110,6 +121,8 @@ def main() -> None:
             st.session_state["selected_trace_id"] = None
     elif nav == "Trace 列表":
         render_list(list_traces(db_path))
+    elif nav == "AI 诊断":
+        render_diagnose(list_traces(db_path), llm_factory, model_default)
     else:
         render_dashboard(list_traces(db_path))
 
