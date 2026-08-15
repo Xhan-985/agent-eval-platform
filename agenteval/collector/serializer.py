@@ -1,4 +1,4 @@
-"""把 callback 采集的扁平事件组装成嵌套 trace JSON。"""
+"""把采集器收集的扁平 span 事件组装成嵌套 trace JSON。"""
 
 from __future__ import annotations
 
@@ -9,23 +9,23 @@ from typing import Any
 from uuid import uuid4
 
 from .annotator import annotate
-from .callback import AgentEvalCallbackHandler
+from .core import SpanCollector
 from .types import Span, Trace, to_json_safe
 
 logger = logging.getLogger("agenteval.serializer")
 
 
-def build_trace(handler: AgentEvalCallbackHandler) -> dict[str, Any]:
-    """从采集完成的 handler 构建完整 trace JSON dict。"""
-    if handler._root_run_id is None:
+def build_trace(collector: SpanCollector) -> dict[str, Any]:
+    """从采集完成的 collector 构建完整 trace JSON dict。"""
+    if collector._root_run_id is None:
         raise ValueError("no trace collected: handler is empty")
-    root_span = _build_span(handler, handler._root_run_id)
+    root_span = _build_span(collector, collector._root_run_id)
     trace = Trace(
         trace_id=str(uuid4()),
         created_at=datetime.now(UTC).isoformat(),
         status="error" if _has_error(root_span) else "success",
-        framework="langgraph",
-        agent_name=handler.agent_name or root_span["name"],
+        framework=getattr(collector, "framework", "langgraph"),
+        agent_name=collector.agent_name or root_span["name"],
         root_span=root_span,
     )
     return dict(trace)
@@ -36,11 +36,11 @@ def serialize_to_json(trace: dict[str, Any]) -> str:
     return json.dumps(trace, ensure_ascii=False, indent=2, default=to_json_safe)
 
 
-def _build_span(handler: AgentEvalCallbackHandler, span_id: str) -> Span:
-    state = handler._states[span_id]
+def _build_span(collector: SpanCollector, span_id: str) -> Span:
+    state = collector._states[span_id]
     children_ids = sorted(
-        handler._children.get(span_id, []),
-        key=lambda cid: handler._states[cid]["started_at"],
+        collector._children.get(span_id, []),
+        key=lambda cid: collector._states[cid]["started_at"],
     )
     span = Span(
         span_id=state["span_id"],
@@ -53,7 +53,7 @@ def _build_span(handler: AgentEvalCallbackHandler, span_id: str) -> Span:
         started_at=state["started_at"],
         ended_at=state["ended_at"],
         metadata=state["metadata"],
-        children=[_build_span(handler, cid) for cid in children_ids],
+        children=[_build_span(collector, cid) for cid in children_ids],
     )
     return span
 

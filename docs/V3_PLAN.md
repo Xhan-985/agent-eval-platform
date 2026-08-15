@@ -41,13 +41,53 @@
 - [x] 旧功能（列表/树/时间线/replay/诊断/对比）不受影响
 - [x] 全部测试通过（190 个），ruff 全绿
 
-## 3. V3-P1：多框架支持（OpenAI Agents SDK）— 规划
+## 3. V3-P1：多框架支持（OpenAI Agents SDK）— 已完成（0.4.0）
 
-- 采集层抽象：把 trace 构建从 LangChain callback 解耦成框架无关的 span 事件流
-- 新建 `collector/agents_sdk_adapter.py`
-- 前置决策（开工前必须定）：
-  - async 方案：a) 同步桥接（asyncio.run 包装） b) 采集器原生支持 async c) 暂缓
-- 验收：同一套 Web / 诊断 / replay 对 LangGraph 与 OpenAI Agents SDK 生成的 trace 都可用
+### 3.1 已定决策
+
+- async 方案：**同步回调采集，不引入 asyncio 桥接**。依据：openai-agents 0.21 的
+  TracingProcessor 回调（on_trace_start / on_span_start / on_span_end / on_trace_end）
+  本身就是同步接口，由 SDK 在 async 运行循环里调用；采集端无需 asyncio.run 包装，
+  也不需要把采集器整体改 async。trace 结束时同步写 SQLite（单条 INSERT）。
+- 注册方式：`init(agents_sdk=True)` 调用 `agents.tracing.set_trace_processors([...])`，
+  替换 SDK 默认上传 OpenAI 平台的导出器（本地优先、隐私友好，README 已注明）。
+- LLM span 数据捕获时机：SDK 0.21 的 response span 在 **span 结束时**才填充
+  model / usage / output，因此适配器在 on_span_end 里补捕获（改名 + 合并
+  metadata），start 时只建基础 span。
+
+### 3.2 已完成
+
+- `collector/core.py`：框架无关的 `SpanCollector`（扁平状态机 start/end/error），
+  LangGraph callback 与 SDK 适配器共用；`serializer.build_trace` 读取
+  `collector.framework`（langgraph / openai_agents）。
+- `collector/callback.py`：重构为 `SpanCollector` 薄适配层，LangGraph 行为不变。
+- `collector/agents_sdk_adapter.py`：`AgentEvalTracingProcessor`，SDK span 类型映射
+  （agent→agent_run/node、function→tool_call、generation→llm_call），generation 的
+  model / model_config / usage 归一化为 metadata（model_version、invocation_params、
+  token_usage），OpenAI 消息 role 转为 agenteval message type（replay 兼容）；
+  trace 结束按 trace_id 隔离并发执行，根 span 用首个 llm 输入/末个 llm 输出补齐
+  （Web 对话预览可用）。
+- `agenteval/__init__.py`：`init(agents_sdk=True)` 注册处理器；未装 openai-agents
+  时给出明确中文错误提示；pyproject 新增 `[agents-sdk]` extra。
+- `examples/agents_sdk_demo.py`；`tests/test_collector.py` + `tests/test_agents_sdk.py`
+  （假 span 对象，不依赖真实 API）。
+- 真实端到端验证：本地用 DeepSeek（deepseek-v4-flash）跑通 Runner.run，
+  trace 自动入库；树为 agent_run → llm_call，模型名/正文/token 用量正确。
+
+### 3.3 待办
+
+- Web 列表按 framework 过滤/展示（可选，用户确认后做）
+
+### 3.4 验收
+
+- [x] 同一套 Web / 诊断 / replay 对 LangGraph 与 OpenAI Agents SDK 生成的 trace 都可用
+
+### 3.5 已知限制
+
+- SDK 0.21 的 response span 不记录输入（Response.prompt 为 None），SDK trace
+  的根 input 为空，Web 列表"对话内容"预览显示 "—"；等 SDK 补 input 或后续
+  包装 Runner.run 再完善。
+- `init(agents_sdk=True)` 会替换 SDK 默认导出器（trace 只写本地，不上传 OpenAI）。
 
 ## 4. 已知限制
 

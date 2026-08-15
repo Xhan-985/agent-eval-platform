@@ -664,6 +664,45 @@ replay(trace_id, span_id, new_input):
 | 导出 OTLP | 兼容 OpenTelemetry 生态 |
 | 性能分析 | span 耗时统计、token 成本归因 |
 
+### 8.6 V3-P1：OpenAI Agents SDK 采集适配
+
+**采集层解耦**：
+- `collector/core.py` — 框架无关 `SpanCollector`（start/end/error 状态机），
+  LangGraph callback 与 SDK 适配器共用；`collector.framework` 决定
+  trace.framework（langgraph / openai_agents）。
+- `collector/callback.py` — 重构为 `SpanCollector` 薄适配层，内部属性
+  （`_states` / `_children` / `_root_run_id` / `agent_name`）通过属性转发保持兼容。
+- `collector/agents_sdk_adapter.py` — `AgentEvalTracingProcessor(TracingProcessor)`。
+
+**关键接口契约**（openai-agents 0.21 实测）：
+- `agents.tracing.set_trace_processors(list)` **替换**现有处理器（含默认上传
+  OpenAI 平台的导出器）；回调全部为同步方法。
+- Span 属性：`trace_id` / `span_id` / `parent_id` / `span_data` / `error` /
+  `started_at` / `ended_at`（ISO 字符串）。
+- span_data.type：`agent` / `function` / `generation` / `custom` 等；
+  generation 有 `model` / `model_config` / `usage`（input_tokens/output_tokens/
+  total_tokens），function 有 `name` / `input` / `output` / `mcp_data`。
+
+**映射规则**：
+| SDK span type | 我们的 span type | 说明 |
+|---------------|------------------|------|
+| agent | agent_run（根）/ node（嵌套） | handoff 子代理按 node |
+| function | tool_call | 绝不真实执行（replay 录播） |
+| generation | llm_call | model/usage 归入 metadata |
+| custom/guardrail/handoff/response 等 | node | 其余兜底 |
+
+**接入方式**：`agenteval.init(agents_sdk=True)`（需 `pip install
+"agenteval-debugger[agents-sdk]"`）。trace 结束按 trace_id 隔离并发执行；
+根 span 用首个 llm 输入/末个 llm 输出补齐，保证 Web 对话预览可用。
+
+**实测要点**（openai-agents 0.21 + DeepSeek）：
+- Runner.run 实际 span 结构为 task → agent → turn → response；适配器跳过
+  task/turn 包装，把首个 agent 提升为根，response 映射为 llm_call。
+- response span 的 model / usage / output 在 **span 结束时**才填充，须在
+  on_span_end 补捕获（改名 + 合并 metadata）。
+- response span 不带 input（Response.prompt=None），SDK trace 的根 input 为空，
+  Web 对话预览显示 "—"（已知限制，等 SDK 补 input 或包装 Runner.run）。
+
 ---
 
 ## 附录：验收清单（Week 1 结束时检查）

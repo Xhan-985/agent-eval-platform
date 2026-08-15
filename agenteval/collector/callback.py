@@ -1,21 +1,17 @@
-"""LangGraph/LangChain callback 采集器。"""
+"""LangGraph/LangChain callback 采集器（SpanCollector 的薄适配层）。"""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
 from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from .types import MAX_ERROR_CHARS, SpanState, cap_messages, to_json_safe, truncate_field
+from .core import SpanCollector, now_iso, safe_call
+from .types import SpanState, cap_messages, to_json_safe, truncate_field
 
 logger = logging.getLogger("agenteval.collector")
-
-
-def _now() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 def _extract_model_version(llm_output, invocation_params) -> str | None:
@@ -48,30 +44,44 @@ class AgentEvalCallbackHandler(BaseCallbackHandler):
     def __init__(self, verbose: bool = False) -> None:
         super().__init__()
         self._verbose = verbose
-        # 用户通过 wrap(graph, name=...) 指定的 agent 名；None 时用图名/根 span 名。
-        self.agent_name: str | None = None
-        self.reset()
+        self._collector = SpanCollector()
+
+    # ------------------------------------------------------------------
+    # 兼容旧内部属性：serializer 与既有测试直接读取这些字段。
+    # ------------------------------------------------------------------
+    @property
+    def agent_name(self) -> str | None:
+        return self._collector.agent_name
+
+    @agent_name.setter
+    def agent_name(self, value: str | None) -> None:
+        self._collector.agent_name = value
+
+    @property
+    def _states(self) -> dict[str, SpanState]:
+        return self._collector._states
+
+    @property
+    def _children(self) -> dict[str, list[str]]:
+        return self._collector._children
+
+    @property
+    def _root_run_id(self) -> str | None:
+        return self._collector._root_run_id
 
     def reset(self) -> None:
         """重置采集状态，准备下一次执行。"""
-        self._states: dict[str, SpanState] = {}
-        self._children: dict[str, list[str]] = {}
-        self._root_run_id: str | None = None
+        self._collector.reset()
 
     def get_trace(self) -> dict[str, Any]:
         """返回采集到的完整 trace（Agent 执行结束后调用）。"""
-        from .serializer import build_trace  # 延迟导入避免循环依赖
-
-        return build_trace(self)
+        return self._collector.get_trace()
 
     # ------------------------------------------------------------------
     # 内部工具
     # ------------------------------------------------------------------
     def _safe(self, fn: Callable[[], None]) -> None:
-        try:
-            fn()
-        except Exception:
-            logger.exception("callback 内部异常（已忽略，不影响 Agent 执行）")
+        safe_call(fn, logger)
 
     def _start_span(
         self,
@@ -82,42 +92,24 @@ class AgentEvalCallbackHandler(BaseCallbackHandler):
         input_: Any,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        rid = str(run_id)
-        pid = str(parent_run_id) if parent_run_id else None
-        if pid is None:
-            if self._root_run_id is None:
-                self._root_run_id = rid
-        else:
-            self._children.setdefault(pid, []).append(rid)
-        self._states[rid] = SpanState(
-            span_id=rid,
-            parent_id=pid,
-            type=span_type,
-            name=name,
-            input=input_,
-            output=None,
-            error=None,
-            started_at=_now(),
-            ended_at=None,
-            metadata=dict(metadata or {}),
+        self._collector.start_span(
+            run_id,
+            parent_run_id,
+            span_type,
+            name,
+            input_,
+            metadata=metadata,
         )
 
     def _ensure_state(self, run_id, parent_run_id=None) -> SpanState:
         """取 span 状态；若只有 end/error 事件，先补一个占位 span。"""
-        rid = str(run_id)
-        if rid not in self._states:
-            self._start_span(run_id, parent_run_id, "node", "unknown", None)
-        return self._states[rid]
+        return self._collector.ensure_state(run_id, parent_run_id)
 
     def _record_error(self, run_id, parent_run_id, error) -> None:
-        state = self._ensure_state(run_id, parent_run_id)
-        state["error"] = str(error)[:MAX_ERROR_CHARS]
-        state["ended_at"] = _now()
+        self._collector.error_span(run_id, error, parent_id=parent_run_id)
 
     def _record_end(self, run_id, parent_run_id, output) -> None:
-        state = self._ensure_state(run_id, parent_run_id)
-        state["output"] = truncate_field(to_json_safe(output))
-        state["ended_at"] = _now()
+        self._collector.end_span(run_id, output)
 
     def _llm_start(
         self,
@@ -261,7 +253,7 @@ class AgentEvalCallbackHandler(BaseCallbackHandler):
             )
             if model_version:
                 state["metadata"]["model_version"] = model_version
-            state["ended_at"] = _now()
+            state["ended_at"] = now_iso()
 
         self._safe(_run)
 

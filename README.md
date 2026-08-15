@@ -74,6 +74,36 @@ result = traced_graph.invoke({"messages": [("user", "LangGraph 是什么？")]})
 
 **给 Agent 命名**：列表页的"Agent"列默认显示 LangGraph 图的默认名（`LangGraph`），用 `agenteval.wrap(graph, name="我的搜索Agent")` 可以给每次执行的 agent 起个有意义的名字，方便在列表里区分不同任务。
 
+### 接入你的 OpenAI Agents SDK Agent（V3）
+
+OpenAI Agents SDK 是 async 生态，AgentEval 通过它的 TracingProcessor 采集，
+不用改你的 Agent 代码，只需在启动时调用一次：
+
+```bash
+pip install "agenteval-debugger[agents-sdk]"
+```
+
+```python
+import asyncio
+import agenteval
+from agents import Agent, Runner
+
+agenteval.init(agents_sdk=True)   # 注册采集器，进程内所有 Runner.run() 自动入库
+
+async def main():
+    agent = Agent(name="学习助手", instructions="你是中文学习助手。")
+    result = await Runner.run(agent, "用一句话解释什么是 Agent？")
+    print(result.final_output)
+
+asyncio.run(main())
+```
+
+采集到的 trace 与 LangGraph 完全同构：Web 列表/详情/树状图/诊断/replay 都能直接用。
+完整示例见 [`examples/agents_sdk_demo.py`](./examples/agents_sdk_demo.py)。
+
+> ℹ️ 隐私说明：`init(agents_sdk=True)` 会把 SDK 默认上传 OpenAI 平台的导出器替换为
+> 本地入库，trace 只写入本地 `agenteval.db`，不会上传到任何平台。
+
 ### 安全 replay（LLM 节点重跑）
 
 Web 详情页选中 LLM span 后，可修改 input 并重跑；tool span 只回放录播响应，**不会真实执行**（避免发邮件、写库等副作用）。
@@ -178,6 +208,7 @@ agenteval-web          # 或 python -m agenteval web
 
 - [`react_agent_trace.py`](./examples/react_agent_trace.py) — ReAct Agent 完整示例（fake / real 双模式）
 - [`replay_demo.py`](./examples/replay_demo.py) — 安全 replay 演示（fake / real 双模式）
+- [`agents_sdk_demo.py`](./examples/agents_sdk_demo.py) — OpenAI Agents SDK 接入示例
 
 ## 路线图
 
@@ -186,7 +217,7 @@ agenteval-web          # 或 python -m agenteval web
 | v0.1.0 | 采集 + 教学注释 + LLM 节点 replay（MVP） | ✅ MVP 完成 |
 | v0.2.0 | 诊断 Agent（AI 助教）+ trace diff + Langfuse 导出 | ✅ 完成 |
 | v0.3.0 | 性能分析 + token 成本归因 | ✅ 完成 |
-| v0.4.0 | 多框架支持（OpenAI Agents SDK） | 规划中 |
+| v0.4.0 | 多框架支持（OpenAI Agents SDK） | 开发中 |
 | v0.5.0 | 导出 OTLP | 规划中 |
 
 ## 适合谁
@@ -213,8 +244,8 @@ agenteval-web          # 或 python -m agenteval web
 
 ## 已知限制
 
-- 只支持同步 `invoke`，不支持 `ainvoke` / `stream`（调用会明确报错）
-- 只支持 LangGraph；LangChain 原生 chain、OpenAI Agents SDK 等暂不支持（见路线图 v0.3.0）
+- LangGraph 路径只支持同步 `invoke`，不支持 `ainvoke` / `stream`（调用会明确报错）；OpenAI Agents SDK 路径原生支持 async
+- 支持 LangGraph 与 OpenAI Agents SDK；LangChain 原生 chain 等暂不支持
 - 只支持单次串行调用，多次 invoke 请串行执行
 - RAG 检索（retriever）调用暂以 node span 呈现，不单独标注
 - 诊断 Agent 只分析本地 SQLite 中的 trace；报告质量依赖所配置的模型，模型需支持 tool calling

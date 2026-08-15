@@ -44,6 +44,10 @@ web = [
     "streamlit>=1.30",
 ]
 
+agents-sdk = [
+    "openai-agents>=0.1",
+]
+
 [project.urls]
 Homepage = "https://github.com/Xhan-985/agent-eval-platform"
 Repository = "https://github.com/Xhan-985/agent-eval-platform"

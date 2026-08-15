@@ -32,6 +32,7 @@ _verbose: bool = False
 _experiment_id: str | None = None
 _llm_factory: Callable[[str], Any] | None = None
 _last_trace: dict[str, Any] | None = None
+_agents_processor: Any = None
 
 
 def init(
@@ -39,6 +40,7 @@ def init(
     verbose: bool = False,
     experiment_id: str | None = None,
     llm_factory: Callable[[str], Any] | None = None,
+    agents_sdk: bool = False,
 ) -> None:
     """初始化 AgentEval，创建采集 handler（幂等，可重复调用）。
 
@@ -47,8 +49,12 @@ def init(
     llm_factory 是 replay 用工厂函数（如 lambda model_name: ChatOpenAI(model=model_name)），
     不配置时 replay 会给出明确提示，其余功能不受影响。
     verbose=True 时，每次采集完成后会把 trace JSON 打印到控制台。
+    agents_sdk=True 时注册 OpenAI Agents SDK 的 TracingProcessor，进程内所有
+    Runner.run() 自动采集入库（需 pip install 'agenteval-debugger[agents-sdk]'；
+    会替换 SDK 默认上传 OpenAI 平台的导出器，改为只写本地库）。
     """
     global _handler, _db_path, _verbose, _experiment_id, _llm_factory, _last_trace
+    global _agents_processor
     _db_path = db_path
     _verbose = verbose
     _experiment_id = experiment_id
@@ -56,6 +62,23 @@ def init(
     _handler = AgentEvalCallbackHandler(verbose=verbose)
     _last_trace = None
     init_db(db_path)
+    if agents_sdk:
+        try:
+            from agents.tracing import set_trace_processors
+        except ImportError:
+            raise RuntimeError(
+                "启用 OpenAI Agents SDK 采集需要安装可选依赖："
+                "pip install 'agenteval-debugger[agents-sdk]'"
+            ) from None
+        from .collector.agents_sdk_adapter import AgentEvalTracingProcessor
+
+        _agents_processor = AgentEvalTracingProcessor(
+            lambda trace: _store_trace(trace),
+            verbose=verbose,
+        )
+        set_trace_processors([_agents_processor])
+    else:
+        _agents_processor = None
 
 
 def last_trace() -> dict[str, Any] | None:
@@ -191,14 +214,20 @@ def _merge_config(
 
 
 def _finalize_trace(handler: AgentEvalCallbackHandler) -> None:
-    global _last_trace
     try:
         trace = build_trace(handler)
     except ValueError:
         # 未采集到任何事件：清空上次 trace，避免 last_trace() 误返回历史值。
+        global _last_trace
         _last_trace = None
         logger.warning("未采集到 trace：Agent 未产生任何 callback 事件")
         return
+    _store_trace(trace)
+
+
+def _store_trace(trace: dict[str, Any]) -> None:
+    """更新 last_trace + 写 SQLite（LangGraph 与 OpenAI Agents SDK 共用）。"""
+    global _last_trace
     _last_trace = trace
     _persist_trace(trace)
     if _verbose:
