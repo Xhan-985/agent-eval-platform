@@ -80,3 +80,5 @@ traces/
 # Logs
 *.log
 logs/
+
+# local git credentials (never commit).git-credentials
