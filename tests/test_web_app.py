@@ -120,6 +120,20 @@ def test_detail_back_button_returns_to_list(tmp_path, monkeypatch):
     assert at.subheader[0].value == "Trace 列表"
 
 
+def test_detail_performance_tab_shows_attribution(tmp_path, monkeypatch):
+    db = str(tmp_path / "web.db")
+    _seed(db)
+    monkeypatch.setenv("AGENTEVAL_DB", db)
+
+    at = AppTest.from_file(str(APP_PATH), default_timeout=30).run()
+    at.session_state["selected_trace_id"] = "ok1"
+    at.run()
+
+    frames = [frame.value for frame in at.dataframe]
+    assert any({"耗时占比", "Token 占比"} <= set(frame.columns) for frame in frames)
+    assert any(c.label == "显示成本估算（按常见模型单价）" for c in at.checkbox)
+
+
 def test_replay_sidebar_renders_config_inputs(tmp_path, monkeypatch):
     db = str(tmp_path / "web.db")
     _seed(db)

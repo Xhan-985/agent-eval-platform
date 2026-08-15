@@ -123,3 +123,124 @@ def _count(span: dict[str, Any]) -> int:
     for child in span.get("children", []):
         total += _count(child)
     return total
+
+
+def span_duration_ms(span: dict[str, Any]) -> int | None:
+    """单个 span 耗时（毫秒）；时间戳缺失或非法返回 None。"""
+    started, ended = span.get("started_at"), span.get("ended_at")
+    if not started or not ended:
+        return None
+    try:
+        start = datetime.fromisoformat(started)
+        end = datetime.fromisoformat(ended)
+        return int(round((end - start).total_seconds() * 1000))
+    except ValueError:
+        return None
+
+
+def span_total_tokens(span: dict[str, Any]) -> int:
+    """单个 llm_call span 的 token 总数；非 llm_call 返回 0。"""
+    if span.get("type") != "llm_call":
+        return 0
+    usage = (span.get("metadata") or {}).get("token_usage") or {}
+    return int(usage.get("total_tokens") or 0)
+
+
+def build_span_performance(root_span: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """展平所有 span 并附耗时/token 归因（占比），按耗时降序。"""
+    if root_span is None:
+        return []
+    total_tokens = _total_tokens_of(root_span)
+    root_duration = span_duration_ms(root_span) or 0
+    rows: list[dict[str, Any]] = []
+
+    def walk(span: dict[str, Any], depth: int) -> None:
+        duration = span_duration_ms(span)
+        tokens = span_total_tokens(span)
+        rows.append(
+            {
+                "span_id": span.get("span_id"),
+                "depth": depth,
+                "type": span.get("type"),
+                "name": span.get("name"),
+                "duration_ms": duration,
+                "duration_pct": (
+                    round(duration / root_duration * 100, 1)
+                    if duration and root_duration
+                    else 0.0
+                ),
+                "tokens": tokens,
+                "tokens_pct": (
+                    round(tokens / total_tokens * 100, 1) if total_tokens else 0.0
+                ),
+                "error": span.get("error"),
+                "annotation": span.get("annotation"),
+            }
+        )
+        for child in span.get("children") or []:
+            walk(child, depth + 1)
+
+    walk(root_span, 0)
+    return sorted(rows, key=lambda r: (r["duration_ms"] or 0), reverse=True)
+
+
+def _total_tokens_of(span: dict[str, Any]) -> int:
+    total = span_total_tokens(span)
+    for child in span.get("children") or []:
+        total += _total_tokens_of(child)
+    return total
+
+
+def estimate_cost(
+    trace: dict[str, Any], pricing: dict[str, dict[str, float]]
+) -> float:
+    """按模型单价估算整条 trace 的 token 成本（美元）。
+
+    pricing: {model_name: {"input": 每百万 input token 价格, "output": 每百万 output token 价格}}
+    模型未配置单价时按 0 计，不抛错。
+    """
+    root = trace.get("root_span")
+    if not root:
+        return 0.0
+    return _walk_cost(root, pricing)
+
+
+def span_cost(
+    span: dict[str, Any], pricing: dict[str, dict[str, float]]
+) -> float:
+    """单个 llm_call span 的 token 成本（美元）；非 llm_call 或模型无单价返回 0。"""
+    if span.get("type") != "llm_call":
+        return 0.0
+    price = pricing.get(_model_name(span.get("metadata") or {}))
+    if not price:
+        return 0.0
+    usage = (span.get("metadata") or {}).get("token_usage") or {}
+    prompt = int(usage.get("prompt_tokens") or 0)
+    completion = int(usage.get("completion_tokens") or 0)
+    return prompt / 1_000_000 * float(price.get("input", 0)) + (
+        completion / 1_000_000 * float(price.get("output", 0))
+    )
+
+
+def _walk_cost(
+    span: dict[str, Any], pricing: dict[str, dict[str, float]]
+) -> float:
+    cost = span_cost(span, pricing)
+    for child in span.get("children") or []:
+        cost += _walk_cost(child, pricing)
+    return cost
+
+
+def _model_name(meta: dict[str, Any]) -> str:
+    """从 span metadata 解析真实模型 id（优先 invocation_params.model）。"""
+    invocation = meta.get("invocation_params")
+    if isinstance(invocation, dict):
+        for key in ("model", "model_name"):
+            value = invocation.get(key)
+            if isinstance(value, str) and value:
+                return value
+    for key in ("model_version", "model_name"):
+        value = meta.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return "unknown"

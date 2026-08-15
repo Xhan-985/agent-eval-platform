@@ -36,6 +36,7 @@ def test_compute_dashboard_kpis():
     assert stats["total_tokens"] == 150
     assert stats["span_total"] == 10
     assert stats["avg_duration_ms"] == 1167  # (2000+1000+500)/3
+    assert stats["slowest_ms"] == 2000
 
 
 def test_compute_dashboard_empty():
@@ -43,6 +44,7 @@ def test_compute_dashboard_empty():
     assert stats["total"] == 0
     assert stats["success_rate"] == 0.0
     assert stats["avg_duration_ms"] is None
+    assert stats["slowest_ms"] is None
 
 
 def test_build_trend_groups_by_day():

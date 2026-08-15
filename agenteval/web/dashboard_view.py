@@ -26,6 +26,7 @@ def compute_dashboard(rows: list[dict[str, Any]]) -> dict[str, Any]:
     span_total = sum(int(r.get("span_count") or 0) for r in rows)
     durations = [int(r["duration_ms"]) for r in rows if r.get("duration_ms") is not None]
     avg_duration_ms = round(sum(durations) / len(durations)) if durations else None
+    slowest_ms = max(durations) if durations else None
     return {
         "total": total,
         "success": success,
@@ -34,6 +35,7 @@ def compute_dashboard(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "total_tokens": total_tokens,
         "span_total": span_total,
         "avg_duration_ms": avg_duration_ms,
+        "slowest_ms": slowest_ms,
     }
 
 
@@ -99,7 +101,9 @@ def render(rows: list[dict[str, Any]]) -> None:
     col4.metric("平均耗时", format_duration_ms(stats["avg_duration_ms"]))
     col5.metric("错误数", stats["error"])
 
-    st.caption(f"共 {stats['span_total']} 个 span 被采集")
+    slowest = stats["slowest_ms"]
+    slowest_bits = f" · 最慢单次 {format_duration_ms(slowest)}" if slowest else ""
+    st.caption(f"共 {stats['span_total']} 个 span 被采集{slowest_bits}")
 
     trend = build_trend(rows)
     dist = build_status_distribution(rows)

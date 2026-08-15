@@ -11,6 +11,7 @@ import streamlit as st
 from agenteval.storage.schema import display_span_name
 from agenteval.web import timeline_view
 from agenteval.web.metrics import format_duration, format_duration_ms
+from agenteval.web.performance_view import render as render_performance
 from agenteval.web.replay_view import render_replay
 from agenteval.web.theme import status_badge, status_emoji, type_label
 
@@ -67,7 +68,9 @@ def render_trace(
     _render_summary(trace, trace_id, trace_meta)
 
     spans = flatten_spans(trace)
-    tab_timeline, tab_tree, tab_list = st.tabs(["时间线", "调用树", "Span 列表"])
+    tab_timeline, tab_tree, tab_list, tab_perf = st.tabs(
+        ["时间线", "调用树", "Span 列表", "性能"]
+    )
 
     with tab_timeline:
         timeline_view.render(timeline_view.build_waterfall(trace))
@@ -77,6 +80,9 @@ def render_trace(
 
     with tab_list:
         _render_span_table(spans)
+
+    with tab_perf:
+        render_performance(trace)
 
     _render_span_detail(spans, llm_factory)
 
