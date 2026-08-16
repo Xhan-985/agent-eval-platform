@@ -57,6 +57,29 @@ pip install -e ".[web,examples]"
 >
 > 国内网络环境可用镜像加速（清华源示例）：`pip install -i https://pypi.tuna.tsinghua.edu.cn/simple "agenteval-debugger[web,examples]"`
 
+### 30 秒体验：一键生成演示数据
+
+不想先接自己的 Agent？一条命令生成 3 条演示 trace（fake 模式，**无需 API key**）：
+
+```bash
+agenteval-demo        # 或 python -m agenteval demo
+```
+
+输出示例：
+
+```text
+已生成 3 条演示 trace：
+  [成功] 场景 1：正常调用      trace_id: 003e47a7…
+  [失败] 场景 2：tool 抛异常   trace_id: 9a3ddbf2…
+  [成功] 场景 3：多轮调用      trace_id: 21b53df1…
+```
+
+然后启动 Web 界面即可查看完整列表 / 树状图 / 对比：
+
+```bash
+agenteval-web        # 或 python -m agenteval web
+```
+
 ### 接入你的 LangGraph Agent
 
 ```python

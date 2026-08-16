@@ -39,3 +39,24 @@ def web() -> None:
         check=False,
     )
     sys.exit(proc.returncode)
+
+
+def demo() -> None:
+    """一键生成演示 trace（fake 模式，无需 API key），并提示如何打开 Web。"""
+    import sys
+
+    load_dotenv()
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
+    from agenteval.demo import generate_demo_traces
+
+    summary = generate_demo_traces()
+    print(f"已生成 {len(summary)} 条演示 trace：")
+    for item in summary:
+        status_text = "成功" if item["status"] == "success" else "失败"
+        print(f"  [{status_text}] {item['label']}  trace_id: {item['trace_id'][:8]}…")
+    print("\n打开可视化页面查看：")
+    print("  python -m agenteval web   →  http://localhost:8501")
